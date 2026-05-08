@@ -22,9 +22,9 @@ The repository is currently internal. It will be made public and published to np
 }
 ```
 
-**Runtime dependency:** `@clack/prompts` (interactive prompt UI).
+**Runtime dependencies:** `@clack/prompts` (interactive prompt UI), `fs-extra` (file system helpers — replaces raw `fs`, provides `ensureDir` and `outputFile`), `prettier` (formats generated string content before writing to disk, ensuring clean output regardless of how strings are constructed).
 
-**Dev dependencies:** `typescript`, `vitest`, `eslint` (flat config), `prettier`.
+**Dev dependencies:** `typescript`, `@types/node`, `@types/fs-extra`, `vitest`, `eslint` (flat config).
 
 **TypeScript:** targets `ESNext`, `moduleResolution: bundler`, emits to `dist/`.
 
@@ -54,7 +54,7 @@ src/
     php/
       index.ts                # stub — throws "not yet implemented", not reachable from CLI
   utils/
-    writeFile.ts              # mkdirSync({ recursive: true }) + writeFileSync
+    writeFile.ts              # fs-extra outputFile + prettier.format() before writing
 ```
 
 `cli.ts` is the only file with side effects. All generator functions and prompt modules are pure and importable in isolation. The `php/` directory is created now so the slot is visible; the PHP generator is a future ticket.
@@ -133,6 +133,10 @@ The generated `package.json` includes:
 - `dependencies`: `express`, `drizzle-orm`
 - `devDependencies`: `typescript`, `@types/express`, `@types/node`, `tsx`
 - `scripts`: `dev: tsx src/index.ts`, `build: tsc`, `typecheck: tsc --noEmit`
+
+The CLI tool's own `package.json` includes:
+- `dependencies`: `@clack/prompts`, `fs-extra`, `prettier`
+- `devDependencies`: `typescript`, `@types/node`, `@types/fs-extra`, `vitest`, `eslint`
 
 ## Code Generation Approach
 
