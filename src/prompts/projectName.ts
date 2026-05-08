@@ -14,5 +14,5 @@ export async function promptProjectName(initial?: string): Promise<string> {
     process.exit(0);
   }
 
-  return value as string;
+  return (value as string).trim();
 }
