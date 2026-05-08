@@ -33,4 +33,10 @@ describe('writeFile', () => {
     const content = await readFile(filePath, 'utf-8');
     expect(content).toBe(raw);
   });
+
+  it('throws when prettier cannot format malformed TypeScript', async () => {
+    const { writeFile } = await import('./writeFile.js');
+    const filePath = join(tmpDir, 'bad.ts');
+    await expect(writeFile(filePath, 'export const = broken syntax {')).rejects.toThrow();
+  });
 });

@@ -6,8 +6,12 @@ export async function writeFile(filePath: string, content: string): Promise<void
   try {
     const config = await resolveConfig(filePath);
     formatted = await format(content, { ...config, filepath: filePath });
-  } catch {
-    formatted = content;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('No parser could be inferred')) {
+      formatted = content;
+    } else {
+      throw error;
+    }
   }
   await outputFile(filePath, formatted);
 }
