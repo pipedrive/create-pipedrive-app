@@ -5,7 +5,11 @@ import { tmpdir } from 'os';
 import type { GeneratorOptions } from '../interface.js';
 
 const tmpDir = join(tmpdir(), 'cpa-database-test');
-const exists = (p: string) => access(p).then(() => true, () => false);
+const exists = (p: string) =>
+	access(p).then(
+		() => true,
+		() => false,
+	);
 const read = (p: string) => readFile(join(tmpDir, p), 'utf-8');
 
 afterEach(async () => {
@@ -13,24 +17,24 @@ afterEach(async () => {
 });
 
 const pgOptions: GeneratorOptions = {
-  projectName: 'test-app',
-  database: 'postgres',
-  webhooks: false,
-  appExtensions: [],
+	projectName: 'test-app',
+	database: 'postgres',
+	webhooks: false,
+	appExtensions: [],
 };
 
 const mysqlOptions: GeneratorOptions = {
-  projectName: 'test-app',
-  database: 'mysql',
-  webhooks: false,
-  appExtensions: [],
+	projectName: 'test-app',
+	database: 'mysql',
+	webhooks: false,
+	appExtensions: [],
 };
 
 const sqliteOptions: GeneratorOptions = {
-  projectName: 'test-app',
-  database: 'sqlite',
-  webhooks: false,
-  appExtensions: [],
+	projectName: 'test-app',
+	database: 'sqlite',
+	webhooks: false,
+	appExtensions: [],
 };
 
 describe('generateDatabase — schema.ts', () => {
@@ -132,7 +136,7 @@ describe('generateDatabase — 0000_init.sql', () => {
 		expect(content).toContain('pipedrive_user_id');
 	});
 
-	it('postgres migration uses SERIAL and TIMESTAMP', async () => {
+	it('postgres migration uses INTEGER and TIMESTAMP', async () => {
 		const { generateDatabase } = await import('./database.js');
 		await generateDatabase(tmpDir, pgOptions);
 		const content = await read('src/database/migrations/0000_init.sql');

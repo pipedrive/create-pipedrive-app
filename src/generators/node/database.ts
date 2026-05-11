@@ -118,8 +118,8 @@ function dbClientContent(database: GeneratorOptions['database']): string {
 			import mysql from 'mysql2/promise';
 			import * as schema from './schema.js';
 
-			const connection = await mysql.createConnection(process.env.DATABASE_URL!);
-			export const db = drizzle(connection, { schema });
+			const pool = mysql.createPool(process.env.DATABASE_URL!);
+			export const db = drizzle(pool, { schema });
 		`;
 	}
 
@@ -165,7 +165,7 @@ function migrateContent(database: GeneratorOptions['database']): string {
 		import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 		import { db } from './index.js';
 
-		export function runMigrations(): void {
+		export async function runMigrations(): Promise<void> {
 			migrate(db, { migrationsFolder: 'src/database/migrations' });
 		}
 	`;
@@ -240,10 +240,7 @@ async function generateDrizzleConfig(outputDir: string, options: GeneratorOption
 		sqlite: 'sqlite',
 	};
 	const dialect = dialectMap[options.database];
-	const url =
-		options.database === 'sqlite'
-			? `process.env.DATABASE_URL ?? './data.db'`
-			: `process.env.DATABASE_URL!`;
+	const url = options.database === 'sqlite' ? `process.env.DATABASE_URL ?? './data.db'` : `process.env.DATABASE_URL!`;
 
 	const content = dedent`
 		import { defineConfig } from 'drizzle-kit';
