@@ -37,11 +37,21 @@ describe('SourceFileBuilder', () => {
 		expect(out).not.toContain('express');
 	});
 
+	it('importIf adds import when condition is true', () => {
+		const out = new SourceFileBuilder().importIf(true, 'express', ['Router']).build();
+		expect(out).toContain("import { Router } from 'express';");
+	});
+
 	it('importDefaultIf skips when condition is false', () => {
 		const out = new SourceFileBuilder()
 			.importDefaultIf(false, './webhooks.js', 'webhooksRouter')
 			.build();
 		expect(out).not.toContain('webhooks');
+	});
+
+	it('importDefaultIf adds import when condition is true', () => {
+		const out = new SourceFileBuilder().importDefaultIf(true, './app.js', 'app').build();
+		expect(out).toContain("import app from './app.js';");
 	});
 
 	it('addBlock adds body content', () => {
@@ -52,6 +62,11 @@ describe('SourceFileBuilder', () => {
 	it('addBlockIf skips when condition is false', () => {
 		const out = new SourceFileBuilder().addBlockIf(false, 'const x = 1;').build();
 		expect(out).not.toContain('const x');
+	});
+
+	it('addBlockIf adds block when condition is true', () => {
+		const out = new SourceFileBuilder().addBlockIf(true, 'const x = 1;').build();
+		expect(out).toContain('const x = 1;');
 	});
 
 	it('exportDefault appends export statement', () => {
@@ -66,6 +81,12 @@ describe('SourceFileBuilder', () => {
 		expect(() =>
 			new SourceFileBuilder().exportDefault('a').exportDefault('b'),
 		).toThrow('exportDefault called more than once');
+	});
+
+	it('importDefault throws if called twice with different names for same source', () => {
+		expect(() =>
+			new SourceFileBuilder().importDefault('./app.js', 'app').importDefault('./app.js', 'app2'),
+		).toThrow("importDefault called twice for './app.js'");
 	});
 
 	it('build output order: imports → body → export default', () => {

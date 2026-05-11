@@ -1,5 +1,4 @@
 interface ImportEntry {
-	from: string;
 	defaultName?: string;
 	names: string[];
 }
@@ -14,7 +13,7 @@ export class SourceFileBuilder {
 		if (existing) {
 			existing.names = [...new Set([...existing.names, ...names])];
 		} else {
-			this.imports.set(from, { from, names });
+			this.imports.set(from, { names });
 		}
 		return this;
 	}
@@ -22,9 +21,12 @@ export class SourceFileBuilder {
 	importDefault(from: string, name: string): this {
 		const existing = this.imports.get(from);
 		if (existing) {
+			if (existing.defaultName !== undefined && existing.defaultName !== name) {
+				throw new Error(`importDefault called twice for '${from}'`);
+			}
 			existing.defaultName = name;
 		} else {
-			this.imports.set(from, { from, defaultName: name, names: [] });
+			this.imports.set(from, { defaultName: name, names: [] });
 		}
 		return this;
 	}
@@ -58,11 +60,11 @@ export class SourceFileBuilder {
 	}
 
 	build(): string {
-		const importLines = Array.from(this.imports.values()).map((entry) => {
+		const importLines = Array.from(this.imports.entries()).map(([from, entry]) => {
 			const parts: string[] = [];
 			if (entry.defaultName) parts.push(entry.defaultName);
-			if (entry.names.length > 0) parts.push(`{ ${entry.names.join(', ')} }`);
-			return `import ${parts.join(', ')} from '${entry.from}';`;
+			if (entry.names.length > 0) parts.push(`{ ${[...entry.names].sort().join(', ')} }`);
+			return `import ${parts.join(', ')} from '${from}';`;
 		});
 
 		const sections: string[] = [];
