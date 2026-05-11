@@ -6,6 +6,7 @@ import type { GeneratorOptions } from '../interface.js';
 export async function generateDatabase(outputDir: string, options: GeneratorOptions): Promise<void> {
 	await generateSchema(outputDir, options);
 	await generateDbClient(outputDir, options);
+	await generateMigrate(outputDir, options);
 }
 
 async function generateSchema(outputDir: string, options: GeneratorOptions): Promise<void> {
@@ -120,5 +121,43 @@ function dbClientContent(database: GeneratorOptions['database']): string {
 
 		const sqlite = new Database(process.env.DATABASE_URL ?? './data.db');
 		export const db = drizzle(sqlite, { schema });
+	`;
+}
+
+async function generateMigrate(outputDir: string, options: GeneratorOptions): Promise<void> {
+	const content = migrateContent(options.database);
+	await writeFile(join(outputDir, 'src/database/migrate.ts'), content);
+}
+
+function migrateContent(database: GeneratorOptions['database']): string {
+	if (database === 'postgres') {
+		return dedent`
+			import { migrate } from 'drizzle-orm/postgres-js/migrator';
+			import { db } from './index.js';
+
+			export async function runMigrations(): Promise<void> {
+				await migrate(db, { migrationsFolder: 'src/database/migrations' });
+			}
+		`;
+	}
+
+	if (database === 'mysql') {
+		return dedent`
+			import { migrate } from 'drizzle-orm/mysql2/migrator';
+			import { db } from './index.js';
+
+			export async function runMigrations(): Promise<void> {
+				await migrate(db, { migrationsFolder: 'src/database/migrations' });
+			}
+		`;
+	}
+
+	return dedent`
+		import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+		import { db } from './index.js';
+
+		export function runMigrations(): void {
+			migrate(db, { migrationsFolder: 'src/database/migrations' });
+		}
 	`;
 }
