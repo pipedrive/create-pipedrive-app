@@ -4,44 +4,41 @@ import { writeFile } from '../../utils/writeFile.js';
 import type { GeneratorOptions } from '../interface.js';
 
 export async function generatePipedriveClient(outputDir: string, _options: GeneratorOptions): Promise<void> {
-	// pipedrive v21 ships no .d.ts files; this shim satisfies tsc
-	await writeFile(join(outputDir, 'src/pipedrive/pipedrive.d.ts'), `declare module 'pipedrive';\n`);
-
 	await writeFile(
 		join(outputDir, 'src/pipedrive/client.ts'),
 		dedent`
-			import { Configuration, DealsApi, PersonsApi, OrganizationsApi } from 'pipedrive';
+			import * as v2 from 'pipedrive/v2';
+			import * as v1 from 'pipedrive/v1';
 
-			interface TokenRecord {
-				accessToken: string;
-				expiresAt: Date;
-			}
+			const oauth2 = new v2.OAuth2Configuration({
+				clientId: process.env.PIPEDRIVE_CLIENT_ID ?? '',
+				clientSecret: process.env.PIPEDRIVE_CLIENT_SECRET ?? '',
+				redirectUri: process.env.PIPEDRIVE_REDIRECT_URI ?? '',
+			});
 
 			// TODO: replace with database module call
-			async function getStoredToken(_companyId: number): Promise<TokenRecord> {
+			async function getStoredToken(_companyId: number): Promise<v2.TokenResponse | null> {
 				throw new Error('getStoredToken not implemented — wire up database module');
 			}
 
-			// TODO: replace with oauth module call
-			async function refreshStoredToken(_companyId: number): Promise<TokenRecord> {
-				throw new Error('refreshStoredToken not implemented — wire up oauth module');
-			}
-
-			async function getValidToken(companyId: number): Promise<string> {
-				let token = await getStoredToken(companyId);
-				if (token.expiresAt <= new Date()) {
-					token = await refreshStoredToken(companyId);
-				}
-				return token.accessToken;
+			// TODO: replace with database module call
+			async function saveToken(_companyId: number, _token: v2.TokenResponse): Promise<void> {
+				throw new Error('saveToken not implemented — wire up database module');
 			}
 
 			export async function getClient(companyId: number) {
-				const accessToken = await getValidToken(companyId);
-				const config = new Configuration({ accessToken });
+				const storedToken = await getStoredToken(companyId);
+				oauth2.updateToken(storedToken);
+				oauth2.onTokenUpdate = (token) => saveToken(companyId, token);
+
+				const accessToken = oauth2.getAccessToken;
+				const basePath = oauth2.basePath;
+
 				return {
-					deals: new DealsApi(config),
-					persons: new PersonsApi(config),
-					organizations: new OrganizationsApi(config),
+					deals: new v2.DealsApi(new v2.Configuration({ accessToken, basePath })),
+					persons: new v2.PersonsApi(new v2.Configuration({ accessToken, basePath })),
+					organizations: new v2.OrganizationsApi(new v2.Configuration({ accessToken, basePath })),
+					notes: new v1.NotesApi(new v1.Configuration({ accessToken, basePath })),
 				};
 			}
 		`,

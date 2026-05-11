@@ -35,30 +35,32 @@ describe('generatePipedriveClient', () => {
 		expect(content).toContain('export async function getClient');
 	});
 
-	it('imports Configuration, DealsApi, PersonsApi, OrganizationsApi from pipedrive', async () => {
+	it('imports v2 and v1 namespaces from pipedrive', async () => {
 		const { generatePipedriveClient } = await import('./pipedriveClient.js');
 		await generatePipedriveClient(tmpDir, options);
 		const content = await readFile(join(tmpDir, 'src/pipedrive/client.ts'), 'utf-8');
-		expect(content).toContain("from 'pipedrive'");
-		expect(content).toContain('Configuration');
-		expect(content).toContain('DealsApi');
-		expect(content).toContain('PersonsApi');
-		expect(content).toContain('OrganizationsApi');
+		expect(content).toContain("from 'pipedrive/v2'");
+		expect(content).toContain("from 'pipedrive/v1'");
+		expect(content).toContain('v2.DealsApi');
+		expect(content).toContain('v2.PersonsApi');
+		expect(content).toContain('v2.OrganizationsApi');
+		expect(content).toContain('v1.NotesApi');
 	});
 
-	it('contains getStoredToken and refreshStoredToken placeholder functions', async () => {
+	it('contains getStoredToken and saveToken placeholder functions', async () => {
 		const { generatePipedriveClient } = await import('./pipedriveClient.js');
 		await generatePipedriveClient(tmpDir, options);
 		const content = await readFile(join(tmpDir, 'src/pipedrive/client.ts'), 'utf-8');
 		expect(content).toContain('getStoredToken');
-		expect(content).toContain('refreshStoredToken');
+		expect(content).toContain('saveToken');
 	});
 
-	it('checks token expiry before returning client', async () => {
+	it('uses OAuth2Configuration with updateToken and onTokenUpdate', async () => {
 		const { generatePipedriveClient } = await import('./pipedriveClient.js');
 		await generatePipedriveClient(tmpDir, options);
 		const content = await readFile(join(tmpDir, 'src/pipedrive/client.ts'), 'utf-8');
-		expect(content).toContain('expiresAt');
-		expect(content).toContain('new Date()');
+		expect(content).toContain('oauth2.updateToken');
+		expect(content).toContain('oauth2.onTokenUpdate');
+		expect(content).toContain('oauth2.getAccessToken');
 	});
 });
