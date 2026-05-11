@@ -8,6 +8,7 @@ export async function generateDatabase(outputDir: string, options: GeneratorOpti
 	await generateDbClient(outputDir, options);
 	await generateMigrate(outputDir, options);
 	await generateMigrationSql(outputDir, options);
+	await generateDrizzleConfig(outputDir, options);
 }
 
 async function generateSchema(outputDir: string, options: GeneratorOptions): Promise<void> {
@@ -223,4 +224,26 @@ function migrationSqlContent(database: GeneratorOptions['database']): string {
 		  PRIMARY KEY ("pipedrive_company_id", "pipedrive_user_id")
 		);
 	`;
+}
+
+async function generateDrizzleConfig(outputDir: string, options: GeneratorOptions): Promise<void> {
+	const dialect = { postgres: 'postgresql', mysql: 'mysql', sqlite: 'sqlite' }[options.database];
+	const url =
+		options.database === 'sqlite'
+			? `process.env.DATABASE_URL ?? './data.db'`
+			: `process.env.DATABASE_URL!`;
+
+	const content = dedent`
+		import { defineConfig } from 'drizzle-kit';
+
+		export default defineConfig({
+			dialect: '${dialect}',
+			schema: './src/database/schema.ts',
+			out: './src/database/migrations',
+			dbCredentials: {
+				url: ${url},
+			},
+		});
+	`;
+	await writeFile(join(outputDir, 'drizzle.config.ts'), content);
 }
