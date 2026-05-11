@@ -88,7 +88,7 @@ class PackageJsonStep implements BuildStep {
 			version: '0.1.0',
 			type: 'module',
 			scripts: {
-				'dev': 'tsx src/index.ts',
+				'dev': 'tsx watch --env-file=.env src/index.ts',
 				'build': 'tsc',
 				'typecheck': 'tsc --noEmit',
 				'db:migrate': 'drizzle-kit migrate',
@@ -132,14 +132,19 @@ class TsConfigStep implements BuildStep {
 }
 
 class EnvExampleStep implements BuildStep {
-	async execute(outputDir: string, _options: GeneratorOptions): Promise<void> {
+	async execute(outputDir: string, options: GeneratorOptions): Promise<void> {
+		const databaseUrlExample: Record<GeneratorOptions['database'], string> = {
+			postgres: `postgresql://app:app@localhost:5432/${options.projectName}`,
+			mysql: `mysql://app:app@localhost:3306/${options.projectName}`,
+			sqlite: 'file:./data.db',
+		};
 		await writeFile(
 			join(outputDir, '.env.example'),
 			dedent`
 				PIPEDRIVE_CLIENT_ID=
 				PIPEDRIVE_CLIENT_SECRET=
 				PIPEDRIVE_REDIRECT_URI=http://localhost:3000/oauth/callback
-				DATABASE_URL=
+				DATABASE_URL=${databaseUrlExample[options.database]}
 				PORT=3000
 			`,
 		);
