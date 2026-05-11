@@ -39,6 +39,7 @@ describe('nodeGenerator', () => {
 			'src/webhooks/index.ts',
 			'src/app-extensions/panel/index.ts',
 			'src/app-extensions/modal/index.ts',
+			'src/pipedrive/client.ts',
 			'package.json',
 			'tsconfig.json',
 			'.env.example',
