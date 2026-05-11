@@ -83,12 +83,12 @@ describe('generateDatabase — src/database/index.ts', () => {
 		expect(content).toContain('drizzle-orm/mysql2');
 	});
 
-	it('sqlite client uses better-sqlite3', async () => {
+	it('sqlite client uses @libsql/client', async () => {
 		const { generateDatabase } = await import('./database.js');
 		await generateDatabase(tmpDir, sqliteOptions);
 		const content = await read('src/database/index.ts');
-		expect(content).toContain('better-sqlite3');
-		expect(content).toContain('drizzle-orm/better-sqlite3');
+		expect(content).toContain('@libsql/client');
+		expect(content).toContain('drizzle-orm/libsql');
 	});
 });
 
@@ -116,11 +116,11 @@ describe('generateDatabase — migrate.ts', () => {
 		expect(content).toContain('mysql2/migrator');
 	});
 
-	it('sqlite migrate imports from drizzle-orm/better-sqlite3/migrator', async () => {
+	it('sqlite migrate imports from drizzle-orm/libsql/migrator', async () => {
 		const { generateDatabase } = await import('./database.js');
 		await generateDatabase(tmpDir, sqliteOptions);
 		const content = await read('src/database/migrate.ts');
-		expect(content).toContain('better-sqlite3/migrator');
+		expect(content).toContain('libsql/migrator');
 	});
 });
 
@@ -150,6 +150,32 @@ describe('generateDatabase — 0000_init.sql', () => {
 		const content = await read('src/database/migrations/0000_init.sql');
 		expect(content).toContain('INTEGER');
 		expect(content).toContain('TEXT');
+	});
+});
+
+describe('generateDatabase — meta/_journal.json', () => {
+	it('generates journal with 0000_init entry', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		expect(await exists(join(tmpDir, 'src/database/migrations/meta/_journal.json'))).toBe(true);
+		const content = await read('src/database/migrations/meta/_journal.json');
+		const journal = JSON.parse(content);
+		expect(journal.entries[0].tag).toBe('0000_init');
+		expect(journal.entries[0].breakpoints).toBe(true);
+	});
+
+	it('postgres journal uses postgresql dialect', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const journal = JSON.parse(await read('src/database/migrations/meta/_journal.json'));
+		expect(journal.dialect).toBe('postgresql');
+	});
+
+	it('sqlite journal uses sqlite dialect', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, sqliteOptions);
+		const journal = JSON.parse(await read('src/database/migrations/meta/_journal.json'));
+		expect(journal.dialect).toBe('sqlite');
 	});
 });
 

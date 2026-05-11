@@ -4,8 +4,8 @@ import { NodeProjectBuilder } from './projectBuilder.js';
 export const nodeGenerator: Generator = {
 	async generate(outputDir: string, options: GeneratorOptions): Promise<void> {
 		await new NodeProjectBuilder(outputDir, options)
-			.addOAuth()
 			.addDatabase()
+			.addOAuth()
 			.addApp()
 			.when(options.webhooks, (b) => b.addWebhooks())
 			.when(options.database === 'postgres', (b) => b.addPostgres())
