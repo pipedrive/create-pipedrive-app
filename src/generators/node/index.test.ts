@@ -1,13 +1,17 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { access, rm } from 'node:fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
-import { execSync } from 'child_process';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { execSync } from 'node:child_process';
 import { nodeGenerator } from './index.js';
 import type { GeneratorOptions } from '../interface.js';
 
 const tmpDir = join(tmpdir(), 'cpa-e2e-test');
-const exists = (p: string) => access(p).then(() => true, () => false);
+const exists = (p: string) =>
+	access(p).then(
+		() => true,
+		() => false,
+	);
 
 afterEach(async () => {
 	await rm(tmpDir, { recursive: true, force: true });
@@ -39,6 +43,7 @@ describe('nodeGenerator', () => {
 			'src/webhooks/index.ts',
 			'src/app-extensions/panel/index.ts',
 			'src/app-extensions/modal/index.ts',
+			'src/pipedrive/client.ts',
 			'package.json',
 			'tsconfig.json',
 			'.env.example',

@@ -14,7 +14,12 @@ describe('writeFile', () => {
 		const { writeFile } = await import('./writeFile.js');
 		const filePath = join(tmpDir, 'nested/dir/file.ts');
 		await writeFile(filePath, 'export const x = 1;');
-		expect(await access(filePath).then(() => true, () => false)).toBe(true);
+		expect(
+			await access(filePath).then(
+				() => true,
+				() => false,
+			),
+		).toBe(true);
 	});
 
 	it('formats TypeScript content with prettier', async () => {

@@ -20,7 +20,12 @@ describe('generateOauth', () => {
 	it('creates src/oauth/index.ts', async () => {
 		const { generateOauth } = await import('./oauth.js');
 		await generateOauth(tmpDir, options);
-		expect(await access(join(tmpDir, 'src/oauth/index.ts')).then(() => true, () => false)).toBe(true);
+		expect(
+			await access(join(tmpDir, 'src/oauth/index.ts')).then(
+				() => true,
+				() => false,
+			),
+		).toBe(true);
 	});
 
 	it('exports a default Express Router', async () => {

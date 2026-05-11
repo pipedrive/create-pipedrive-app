@@ -1,5 +1,6 @@
 import * as clack from '@clack/prompts';
-import { basename, resolve } from 'path';
+import { spawn } from 'node:child_process';
+import { basename, resolve } from 'node:path';
 import { promptAppExtensions } from './prompts/appExtensions.js';
 import { promptDatabase } from './prompts/database.js';
 import { promptProjectName } from './prompts/projectName.js';
@@ -26,12 +27,25 @@ async function main(): Promise<void> {
 
 	clack.outro(`✓ Created ${projectName}`);
 
+	const installDeps = await clack.confirm({ message: 'Install dependencies now?' });
+	if (clack.isCancel(installDeps)) process.exit(0);
+
+	if (installDeps) {
+		const spinner = clack.spinner();
+		spinner.start('Installing dependencies');
+		const ok = await new Promise<boolean>((resolve) => {
+			const child = spawn('npm', ['install'], { cwd: outputDir, stdio: 'ignore' });
+			child.on('close', (code) => resolve(code === 0));
+		});
+		spinner.stop(ok ? 'Dependencies installed' : 'npm install failed — run it manually');
+	}
+
 	const needsDocker = database === 'postgres' || database === 'mysql';
 	console.log('\nNext steps:');
 	console.log(`  cd ${nameOrPath}`);
 	console.log('  cp .env.example .env');
 	if (needsDocker) console.log('  docker-compose up -d');
-	console.log('  npm install');
+	if (!installDeps) console.log('  npm install');
 	console.log('  npm run dev');
 }
 

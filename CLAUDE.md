@@ -6,6 +6,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `create-pipedrive-app` is a CLI scaffolding tool for external Pipedrive Marketplace developers. It generates a production-ready integration project via `npx create-pipedrive-app <project-name>`.
 
+## Commands
+
+```bash
+npm run build       # compile TypeScript to dist/
+npm run typecheck   # type-check without emitting
+npm run lint        # ESLint
+npm run format      # Prettier (120 char width, tabs, trailing commas)
+npm test            # Vitest suite
+npm run generate        # generate test project in apps/test-app/ (gitignored)
+```
+
 ## Architecture
 
 The tool is **CLI-first**, with an **AI plugin layer** built on top:
@@ -20,6 +31,21 @@ The CLI asks for:
 - Database: Postgres, MySQL, or SQLite
 - App Extensions frontend: React, Vanilla JS, or none
 - Webhooks: Yes/No
+
+### Generator flow
+
+```
+cli.ts (collects prompts)
+  → prompts/ (projectName, database, appExtensions, webhooks)
+    → nodeGenerator (orchestrates 5 sub-generators)
+      → oauth.ts, database.ts, app.ts
+      → webhooks.ts (conditional), appExtensions.ts (conditional)
+      → serverEntry, packageJson, tsConfig, envExample, dockerCompose
+```
+
+**There is no template directory.** Generators build file content as strings using `dedent()`, with conditional string interpolation for optional features (webhooks, app extension types). The `src/utils/writeFile.ts` utility writes files, creates parent directories, and auto-formats output with Prettier — generated code is formatted automatically without an explicit format step.
+
+`app.ts` is the main example of the conditional pattern: imports and router mounts are included only when the relevant features are enabled, and the result is written once.
 
 ### Generated project structure
 
@@ -38,6 +64,38 @@ The CLI asks for:
   marketplace-checklist.md
 ```
 
+## Adding features
+
+- **New prompt**: add `src/prompts/<feature>.ts` + `.test.ts`, export from `cli.ts`
+- **New generator**: add `src/generators/node/<feature>.ts` + `.test.ts`, call from `nodeGenerator`
+- **Modify generated scaffold**: edit template strings in the corresponding generator file
+
+## Builder Pattern
+
+The scaffold generator uses `NodeProjectBuilder` + `BuildStep` (`src/generators/node/projectBuilder.ts`) to compose features without scattering conditional logic across generators.
+
+**How it works:**
+- `BuildStep` interface: `execute(outputDir: string, options: GeneratorOptions): Promise<void>`
+- Each feature is a private class implementing `BuildStep` (e.g. `OAuthStep`, `DatabaseStep`)
+- `NodeProjectBuilder` queues steps and runs them in order via `.build()`
+- Named methods like `.addOAuth()`, `.addDatabase()` push steps unconditionally
+- `when(condition, fn)` adds steps conditionally at the call site in `index.ts` — never inside `execute()`
+
+**Adding a new feature:**
+1. Create a private `BuildStep` class in `projectBuilder.ts`
+2. Add a named method to `NodeProjectBuilder`: `addMyFeature(): this { return this.addStep(new MyFeatureStep()); }`
+3. Call it in `index.ts`, via `when()` if conditional:
+   ```ts
+   .when(options.webhooks, b => b.addWebhooks())
+   ```
+
+**Rule: never put conditional logic inside `execute()`** — use `when()` at the call site. Steps must be unconditional internally; the builder chain controls what runs.
+
+**File content helpers:**
+- Use `SourceFileBuilder` (`src/utils/sourceFileBuilder.ts`) for TypeScript files with conditional imports or blocks — handles deduplication and formatting automatically
+- Use `RouterMountBuilder` (`src/utils/templates.ts`) to accumulate `app.use()` calls conditionally
+- Use plain `dedent` for static content (YAML, JSON, `.env`, SQL)
+
 ## MVP Scope
 
 The initial implementation targets:
@@ -49,7 +107,7 @@ The initial implementation targets:
 - **Frontend** (optional): React App Extensions UI
 - Outputs `.env.example` and a Marketplace readiness checklist
 
-PHP and MySQL/SQLite backends come after MVP.
+PHP and MySQL/SQLite backends come after MVP. The PHP generator exists but throws "not yet implemented". App Extensions frontend is prompted but not yet generated.
 
 ## Core Modules
 
@@ -64,23 +122,19 @@ Structure:
 - `migrations/` — SQL migration files managed by `drizzle-kit`
 - `db.ts` — driver setup (selects `postgres-js`, `mysql2`, or `better-sqlite3` based on the chosen DB)
 
-Key packages: `drizzle-orm`, `drizzle-kit`, and the appropriate driver for the selected database.
-
 ### Pipedrive API client (`backend/pipedrive-client/`)
 Wrapper around the official Pipedrive Node.js client with preconfigured authentication and helpers for common API calls.
 
 ### App Extensions frontend (`frontend/app-extension-ui/`)
 Only generated when the user opts in. Iframe-based UI using the App Extensions SDK, supporting: initialization, resizing, modals, notifications/snackbars, theme handling.
 
-## Development
+## Tests
 
-To test app generation locally:
+Vitest. Tests generate files into a `tmpdir()/cpa-app-test` directory, read them back to verify content, and clean up in `afterEach`. Run a single test file:
 
 ```bash
-npx tsx src/cli.ts app
+npx vitest run src/generators/node/app.test.ts
 ```
-
-This creates an `app/` directory in the repo root (gitignored via `*-app/`).
 
 ## AI Plugin Commands (future layer)
 
