@@ -9,3 +9,21 @@ export function routerMount(path: string, routerName: string): string {
 export function envVarAccess(key: string, fallback?: string): string {
 	return fallback ? `process.env.${key} ?? '${fallback}'` : `process.env.${key}`;
 }
+
+export class RouterMountBuilder {
+	private mounts: string[] = [];
+
+	add(path: string, routerName: string): this {
+		this.mounts.push(routerMount(path, routerName));
+		return this;
+	}
+
+	addIf(condition: boolean, path: string, routerName: string): this {
+		if (condition) this.mounts.push(routerMount(path, routerName));
+		return this;
+	}
+
+	build(): string {
+		return this.mounts.join('\n');
+	}
+}

@@ -14,7 +14,7 @@ npm run typecheck   # type-check without emitting
 npm run lint        # ESLint
 npm run format      # Prettier (120 char width, tabs, trailing commas)
 npm test            # Vitest suite
-npx tsx src/cli.ts app  # generate test project in app/ (gitignored via *-app/)
+npm run generate        # generate test project in apps/test-app/ (gitignored)
 ```
 
 ## Architecture
