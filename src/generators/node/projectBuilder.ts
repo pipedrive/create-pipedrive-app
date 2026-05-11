@@ -74,13 +74,13 @@ class PackageJsonStep implements BuildStep {
 		const dbDrivers: Record<GeneratorOptions['database'], Record<string, string>> = {
 			postgres: { postgres: '^3.4.0' },
 			mysql: { mysql2: '^3.9.0' },
-			sqlite: { 'better-sqlite3': '^9.4.0' },
+			sqlite: { '@libsql/client': '^0.14.0' },
 		};
 
 		const dbDevDrivers: Record<GeneratorOptions['database'], Record<string, string>> = {
 			postgres: {},
 			mysql: {},
-			sqlite: { '@types/better-sqlite3': '^7.6.0' },
+			sqlite: {},
 		};
 
 		const pkg = {

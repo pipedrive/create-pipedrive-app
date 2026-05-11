@@ -8,6 +8,7 @@ export async function generateDatabase(outputDir: string, options: GeneratorOpti
 	await generateDbClient(outputDir, options);
 	await generateMigrate(outputDir, options);
 	await generateMigrationSql(outputDir, options);
+	await generateMigrationJournal(outputDir, options);
 	await generateDrizzleConfig(outputDir, options);
 	if (options.database === 'postgres' || options.database === 'mysql') {
 		await generateDockerCompose(outputDir, options);
@@ -126,12 +127,12 @@ function dbClientContent(database: GeneratorOptions['database']): string {
 	}
 
 	return dedent`
-		import { drizzle } from 'drizzle-orm/better-sqlite3';
-		import Database from 'better-sqlite3';
+		import { drizzle } from 'drizzle-orm/libsql';
+		import { createClient } from '@libsql/client';
 		import * as schema from './schema.js';
 
-		const sqlite = new Database(process.env.DATABASE_URL ?? './data.db');
-		export const db = drizzle(sqlite, { schema });
+		const client = createClient({ url: process.env.DATABASE_URL ?? 'file:./data.db' });
+		export const db = drizzle(client, { schema });
 	`;
 }
 
@@ -164,11 +165,11 @@ function migrateContent(database: GeneratorOptions['database']): string {
 	}
 
 	return dedent`
-		import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+		import { migrate } from 'drizzle-orm/libsql/migrator';
 		import { db } from './index.js';
 
 		export async function runMigrations(): Promise<void> {
-			migrate(db, { migrationsFolder: 'src/database/migrations' });
+			await migrate(db, { migrationsFolder: 'src/database/migrations' });
 		}
 	`;
 }
@@ -235,6 +236,20 @@ function migrationSqlContent(database: GeneratorOptions['database']): string {
 	`;
 }
 
+async function generateMigrationJournal(outputDir: string, options: GeneratorOptions): Promise<void> {
+	const dialectMap: Record<GeneratorOptions['database'], string> = {
+		postgres: 'postgresql',
+		mysql: 'mysql',
+		sqlite: 'sqlite',
+	};
+	const journal = {
+		version: '6',
+		dialect: dialectMap[options.database],
+		entries: [{ idx: 0, version: '6', when: 0, tag: '0000_init', breakpoints: true }],
+	};
+	await writeFile(join(outputDir, 'src/database/migrations/meta/_journal.json'), JSON.stringify(journal, null, 2));
+}
+
 async function generateDockerCompose(outputDir: string, options: GeneratorOptions): Promise<void> {
 	const content =
 		options.database === 'postgres'
@@ -291,7 +306,8 @@ async function generateDrizzleConfig(outputDir: string, options: GeneratorOption
 		sqlite: 'sqlite',
 	};
 	const dialect = dialectMap[options.database];
-	const url = options.database === 'sqlite' ? `process.env.DATABASE_URL ?? './data.db'` : `process.env.DATABASE_URL!`;
+	const url =
+		options.database === 'sqlite' ? `process.env.DATABASE_URL ?? 'file:./data.db'` : `process.env.DATABASE_URL!`;
 
 	const content = dedent`
 		import { defineConfig } from 'drizzle-kit';
