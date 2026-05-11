@@ -55,9 +55,12 @@ class ServerEntryStep implements BuildStep {
 		await writeFile(
 			join(outputDir, 'src/index.ts'),
 			dedent`
+				import { runMigrations } from './database/migrate.js';
 				import app from './app.js';
 
 				const PORT = ${envVarAccess('PORT', '3000')};
+
+				await runMigrations();
 				app.listen(PORT, () => {
 					console.log(\`Server running on port \${PORT}\`);
 				});
@@ -68,25 +71,41 @@ class ServerEntryStep implements BuildStep {
 
 class PackageJsonStep implements BuildStep {
 	async execute(outputDir: string, options: GeneratorOptions): Promise<void> {
+		const dbDrivers: Record<GeneratorOptions['database'], Record<string, string>> = {
+			postgres: { postgres: '^3.4.0' },
+			mysql: { mysql2: '^3.9.0' },
+			sqlite: { 'better-sqlite3': '^9.4.0' },
+		};
+
+		const dbDevDrivers: Record<GeneratorOptions['database'], Record<string, string>> = {
+			postgres: {},
+			mysql: {},
+			sqlite: { '@types/better-sqlite3': '^7.6.0' },
+		};
+
 		const pkg = {
 			name: options.projectName,
 			version: '0.1.0',
 			type: 'module',
 			scripts: {
-				dev: 'tsx src/index.ts',
-				build: 'tsc',
-				typecheck: 'tsc --noEmit',
+				'dev': 'tsx src/index.ts',
+				'build': 'tsc',
+				'typecheck': 'tsc --noEmit',
+				'db:migrate': 'drizzle-kit migrate',
 			},
 			dependencies: {
 				'express': '^4.19.0',
 				'drizzle-orm': '^0.30.0',
 				'pipedrive': '^32.0.0',
+				...dbDrivers[options.database],
 			},
 			devDependencies: {
 				'typescript': '^5.4.0',
 				'@types/express': '^4.17.0',
 				'@types/node': '^20.0.0',
 				'tsx': '^4.7.0',
+				'drizzle-kit': '^0.21.0',
+				...dbDevDrivers[options.database],
 			},
 		};
 		await writeFile(join(outputDir, 'package.json'), JSON.stringify(pkg, null, 2));
@@ -143,6 +162,11 @@ class PostgresDockerStep implements BuildStep {
 				      - '5432:5432'
 				    volumes:
 				      - db_data:/var/lib/postgresql/data
+				    healthcheck:
+				      test: ['CMD', 'pg_isready', '-U', 'app']
+				      interval: 5s
+				      timeout: 5s
+				      retries: 5
 
 				volumes:
 				  db_data:
@@ -168,6 +192,11 @@ class MySQLDockerStep implements BuildStep {
 				      - '3306:3306'
 				    volumes:
 				      - db_data:/var/lib/mysql
+				    healthcheck:
+				      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'app', '--password=app']
+				      interval: 5s
+				      timeout: 5s
+				      retries: 5
 
 				volumes:
 				  db_data:
