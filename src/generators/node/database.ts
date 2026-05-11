@@ -227,7 +227,12 @@ function migrationSqlContent(database: GeneratorOptions['database']): string {
 }
 
 async function generateDrizzleConfig(outputDir: string, options: GeneratorOptions): Promise<void> {
-	const dialect = { postgres: 'postgresql', mysql: 'mysql', sqlite: 'sqlite' }[options.database];
+	const dialectMap: Record<GeneratorOptions['database'], string> = {
+		postgres: 'postgresql',
+		mysql: 'mysql',
+		sqlite: 'sqlite',
+	};
+	const dialect = dialectMap[options.database];
 	const url =
 		options.database === 'sqlite'
 			? `process.env.DATABASE_URL ?? './data.db'`
