@@ -72,6 +72,16 @@ Wrapper around the official Pipedrive Node.js client with preconfigured authenti
 ### App Extensions frontend (`frontend/app-extension-ui/`)
 Only generated when the user opts in. Iframe-based UI using the App Extensions SDK, supporting: initialization, resizing, modals, notifications/snackbars, theme handling.
 
+## Development
+
+To test app generation locally:
+
+```bash
+npx tsx src/cli.ts app
+```
+
+This creates an `app/` directory in the repo root (gitignored via `*-app/`).
+
 ## AI Plugin Commands (future layer)
 
 ```

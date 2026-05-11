@@ -5,8 +5,9 @@ import type { GeneratorOptions } from '../interface.js';
 export async function generateOauth(outputDir: string, _options: GeneratorOptions): Promise<void> {
   await writeFile(
     join(outputDir, 'src/oauth/index.ts'),
-    `import { Router } from 'express';
-export default Router();
-`,
+    `
+      import { Router } from 'express';
+      export default Router();
+    `,
   );
 }
