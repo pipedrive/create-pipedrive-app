@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { pathExists, remove } from 'fs-extra';
+import { access, rm } from 'node:fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { execSync } from 'child_process';
@@ -7,9 +7,10 @@ import { nodeGenerator } from './index.js';
 import type { GeneratorOptions } from '../interface.js';
 
 const tmpDir = join(tmpdir(), 'cpa-e2e-test');
+const exists = (p: string) => access(p).then(() => true, () => false);
 
 afterEach(async () => {
-	await remove(tmpDir);
+	await rm(tmpDir, { recursive: true, force: true });
 });
 
 const fullOptions: GeneratorOptions = {
@@ -45,16 +46,16 @@ describe('nodeGenerator', () => {
 		];
 
 		for (const file of expectedFiles) {
-			expect(await pathExists(join(tmpDir, file)), `Missing: ${file}`).toBe(true);
+			expect(await exists(join(tmpDir, file)), `Missing: ${file}`).toBe(true);
 		}
 	});
 
 	it('omits conditional files for minimal options', async () => {
 		await nodeGenerator.generate(tmpDir, minimalOptions);
 
-		expect(await pathExists(join(tmpDir, 'src/webhooks/index.ts'))).toBe(false);
-		expect(await pathExists(join(tmpDir, 'src/app-extensions'))).toBe(false);
-		expect(await pathExists(join(tmpDir, 'docker-compose.yml'))).toBe(false);
+		expect(await exists(join(tmpDir, 'src/webhooks/index.ts'))).toBe(false);
+		expect(await exists(join(tmpDir, 'src/app-extensions'))).toBe(false);
+		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(false);
 	});
 
 	it('generated project passes tsc --noEmit', async () => {

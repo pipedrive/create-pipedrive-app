@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { pathExists, readFile, remove } from 'fs-extra';
+import { access, readFile, rm } from 'node:fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type { GeneratorOptions } from '../interface.js';
@@ -13,14 +13,14 @@ const options: GeneratorOptions = {
 };
 
 afterEach(async () => {
-	await remove(tmpDir);
+	await rm(tmpDir, { recursive: true, force: true });
 });
 
 describe('generateOauth', () => {
 	it('creates src/oauth/index.ts', async () => {
 		const { generateOauth } = await import('./oauth.js');
 		await generateOauth(tmpDir, options);
-		expect(await pathExists(join(tmpDir, 'src/oauth/index.ts'))).toBe(true);
+		expect(await access(join(tmpDir, 'src/oauth/index.ts')).then(() => true, () => false)).toBe(true);
 	});
 
 	it('exports a default Express Router', async () => {

@@ -1,13 +1,14 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { pathExists, readFile, remove } from 'fs-extra';
+import { access, readFile, rm } from 'node:fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type { GeneratorOptions } from '../interface.js';
 
 const tmpDir = join(tmpdir(), 'cpa-webhooks-test');
+const exists = (p: string) => access(p).then(() => true, () => false);
 
 afterEach(async () => {
-	await remove(tmpDir);
+	await rm(tmpDir, { recursive: true, force: true });
 });
 
 describe('generateWebhooks', () => {
@@ -20,7 +21,7 @@ describe('generateWebhooks', () => {
 			appExtensions: [],
 		};
 		await generateWebhooks(tmpDir, options);
-		expect(await pathExists(join(tmpDir, 'src/webhooks/index.ts'))).toBe(true);
+		expect(await exists(join(tmpDir, 'src/webhooks/index.ts'))).toBe(true);
 	});
 
 	it('exports a default Express Router', async () => {

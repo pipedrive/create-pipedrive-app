@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { readFile, remove } from 'fs-extra';
+import { readFile, rm } from 'node:fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import type { GeneratorOptions } from '../interface.js';
@@ -7,7 +7,7 @@ import type { GeneratorOptions } from '../interface.js';
 const tmpDir = join(tmpdir(), 'cpa-app-test');
 
 afterEach(async () => {
-	await remove(tmpDir);
+	await rm(tmpDir, { recursive: true, force: true });
 });
 
 async function getAppContent(options: GeneratorOptions): Promise<string> {

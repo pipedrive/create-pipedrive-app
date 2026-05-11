@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { pathExists, readFile, remove } from 'fs-extra';
+import { access, readFile, rm } from 'node:fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
 const tmpDir = join(tmpdir(), 'cpa-writefile-test');
 
 afterEach(async () => {
-	await remove(tmpDir);
+	await rm(tmpDir, { recursive: true, force: true });
 });
 
 describe('writeFile', () => {
@@ -14,7 +14,7 @@ describe('writeFile', () => {
 		const { writeFile } = await import('./writeFile.js');
 		const filePath = join(tmpDir, 'nested/dir/file.ts');
 		await writeFile(filePath, 'export const x = 1;');
-		expect(await pathExists(filePath)).toBe(true);
+		expect(await access(filePath).then(() => true, () => false)).toBe(true);
 	});
 
 	it('formats TypeScript content with prettier', async () => {

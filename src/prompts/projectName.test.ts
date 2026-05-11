@@ -28,9 +28,11 @@ describe('promptProjectName', () => {
 		vi.mocked(clack.text).mockResolvedValue(Symbol('cancel') as never);
 		vi.mocked(clack.isCancel).mockReturnValue(true);
 		vi.mocked(clack.cancel).mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+		const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
+			throw new Error('process.exit');
+		});
 		const { promptProjectName } = await import('./projectName.js');
-		await promptProjectName();
+		await expect(promptProjectName()).rejects.toThrow('process.exit');
 		expect(exitSpy).toHaveBeenCalledWith(0);
 	});
 });
