@@ -8,17 +8,20 @@
   },
   "scripts": {
     "build": "tsc",
+    "format": "prettier --write src",
     "lint": "eslint src",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@clack/prompts": "^0.9.0",
+    "dedent": "^1.7.2",
     "fs-extra": "^11.2.0",
     "prettier": "^3.3.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@types/dedent": "^0.7.2",
     "@types/fs-extra": "^11.0.4",
     "@types/node": "^20.0.0",
     "eslint": "^9.0.0",
