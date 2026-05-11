@@ -44,6 +44,18 @@ async function generateServerEntry(outputDir: string): Promise<void> {
 }
 
 async function generatePackageJson(outputDir: string, options: GeneratorOptions): Promise<void> {
+	const dbDrivers: Record<GeneratorOptions['database'], Record<string, string>> = {
+		postgres: { postgres: '^3.4.0' },
+		mysql: { mysql2: '^3.9.0' },
+		sqlite: { 'better-sqlite3': '^9.4.0' },
+	};
+
+	const dbDevDrivers: Record<GeneratorOptions['database'], Record<string, string>> = {
+		postgres: {},
+		mysql: {},
+		sqlite: { '@types/better-sqlite3': '^7.6.0' },
+	};
+
 	const pkg = {
 		name: options.projectName,
 		version: '0.1.0',
@@ -52,16 +64,20 @@ async function generatePackageJson(outputDir: string, options: GeneratorOptions)
 			dev: 'tsx src/index.ts',
 			build: 'tsc',
 			typecheck: 'tsc --noEmit',
+			'db:migrate': 'drizzle-kit migrate',
 		},
 		dependencies: {
-			'express': '^4.19.0',
+			express: '^4.19.0',
 			'drizzle-orm': '^0.30.0',
+			...dbDrivers[options.database],
 		},
 		devDependencies: {
-			'typescript': '^5.4.0',
+			typescript: '^5.4.0',
 			'@types/express': '^4.17.0',
 			'@types/node': '^20.0.0',
-			'tsx': '^4.7.0',
+			tsx: '^4.7.0',
+			'drizzle-kit': '^0.20.0',
+			...dbDevDrivers[options.database],
 		},
 	};
 	await writeFile(join(outputDir, 'package.json'), JSON.stringify(pkg, null, 2));

@@ -37,7 +37,9 @@ function schemaContent(database: GeneratorOptions['database']): string {
 					createdAt: timestamp('created_at').notNull().defaultNow(),
 					updatedAt: timestamp('updated_at').notNull().defaultNow(),
 				},
-				(table) => [primaryKey({ columns: [table.pipedriveCompanyId, table.pipedriveUserId] })],
+				(table) => ({
+					pk: primaryKey({ columns: [table.pipedriveCompanyId, table.pipedriveUserId] }),
+				}),
 			);
 		`;
 	}
@@ -61,7 +63,9 @@ function schemaContent(database: GeneratorOptions['database']): string {
 					createdAt: timestamp('created_at').notNull().defaultNow(),
 					updatedAt: timestamp('updated_at').notNull().defaultNow(),
 				},
-				(table) => [primaryKey({ columns: [table.pipedriveCompanyId, table.pipedriveUserId] })],
+				(table) => ({
+					pk: primaryKey({ columns: [table.pipedriveCompanyId, table.pipedriveUserId] }),
+				}),
 			);
 		`;
 	}
@@ -84,7 +88,9 @@ function schemaContent(database: GeneratorOptions['database']): string {
 				createdAt: integer('created_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 				updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull().$defaultFn(() => new Date()),
 			},
-			(table) => [primaryKey({ columns: [table.pipedriveCompanyId, table.pipedriveUserId] })],
+			(table) => ({
+				pk: primaryKey({ columns: [table.pipedriveCompanyId, table.pipedriveUserId] }),
+			}),
 		);
 	`;
 }
