@@ -26,10 +26,6 @@ export const nodeGenerator: Generator = {
 		await generatePackageJson(outputDir, options);
 		await generateTsConfig(outputDir);
 		await generateEnvExample(outputDir);
-
-		if (options.database === 'postgres' || options.database === 'mysql') {
-			await generateDockerCompose(outputDir, options);
-		}
 	},
 };
 
@@ -99,43 +95,4 @@ async function generateEnvExample(outputDir: string): Promise<void> {
       PORT=3000
     `,
 	);
-}
-
-async function generateDockerCompose(outputDir: string, options: GeneratorOptions): Promise<void> {
-	const isPostgres = options.database === 'postgres';
-	const content = isPostgres
-		? dedent`
-        services:
-          db:
-            image: postgres:16
-            environment:
-              POSTGRES_USER: app
-              POSTGRES_PASSWORD: app
-              POSTGRES_DB: ${options.projectName}
-            ports:
-              - '5432:5432'
-            volumes:
-              - db_data:/var/lib/postgresql/data
-
-        volumes:
-          db_data:
-      `
-		: dedent`
-        services:
-          db:
-            image: mysql:8
-            environment:
-              MYSQL_ROOT_PASSWORD: app
-              MYSQL_DATABASE: ${options.projectName}
-              MYSQL_USER: app
-              MYSQL_PASSWORD: app
-            ports:
-              - '3306:3306'
-            volumes:
-              - db_data:/var/lib/mysql
-
-        volumes:
-          db_data:
-      `;
-	await writeFile(join(outputDir, 'docker-compose.yml'), content);
 }

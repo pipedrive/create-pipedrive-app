@@ -9,6 +9,7 @@ export async function generateDatabase(outputDir: string, options: GeneratorOpti
 	await generateMigrate(outputDir, options);
 	await generateMigrationSql(outputDir, options);
 	await generateDrizzleConfig(outputDir, options);
+	await generateDockerCompose(outputDir, options);
 }
 
 async function generateSchema(outputDir: string, options: GeneratorOptions): Promise<void> {
@@ -251,4 +252,59 @@ async function generateDrizzleConfig(outputDir: string, options: GeneratorOption
 		});
 	`;
 	await writeFile(join(outputDir, 'drizzle.config.ts'), content);
+}
+
+async function generateDockerCompose(outputDir: string, options: GeneratorOptions): Promise<void> {
+	if (options.database === 'sqlite') return;
+	const content = dockerComposeContent(options);
+	await writeFile(join(outputDir, 'docker-compose.yml'), content);
+}
+
+function dockerComposeContent(options: GeneratorOptions): string {
+	if (options.database === 'postgres') {
+		return dedent`
+			services:
+			  db:
+			    image: postgres:16
+			    environment:
+			      POSTGRES_USER: app
+			      POSTGRES_PASSWORD: app
+			      POSTGRES_DB: ${options.projectName}
+			    ports:
+			      - '5432:5432'
+			    volumes:
+			      - db_data:/var/lib/postgresql/data
+			    healthcheck:
+			      test: ['CMD', 'pg_isready', '-U', 'app']
+			      interval: 5s
+			      timeout: 5s
+			      retries: 5
+
+			volumes:
+			  db_data:
+		`;
+	}
+
+	return dedent`
+		services:
+		  db:
+		    image: mysql:8
+		    environment:
+		      MYSQL_ROOT_PASSWORD: app
+		      MYSQL_DATABASE: ${options.projectName}
+		      MYSQL_USER: app
+		      MYSQL_PASSWORD: app
+		    ports:
+		      - '3306:3306'
+		    volumes:
+		      - db_data:/var/lib/mysql
+		    healthcheck:
+		      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'app', '--password=app']
+		      interval: 5s
+		      timeout: 5s
+		      retries: 5
+
+		volumes:
+		  db_data:
+	`;
 }
