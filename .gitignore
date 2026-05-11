@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+docs/superpowers/
+
+# locally generated test apps
+*-app/
