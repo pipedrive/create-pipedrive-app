@@ -96,7 +96,7 @@ class PackageJsonStep implements BuildStep {
 			dependencies: {
 				'express': '^4.19.0',
 				'drizzle-orm': '^0.30.0',
-				'pipedrive': '^21.0.0',
+				'pipedrive': '^32.0.0',
 				...dbDrivers[options.database],
 			},
 			devDependencies: {
