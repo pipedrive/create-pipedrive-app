@@ -255,4 +255,3 @@ async function generateDrizzleConfig(outputDir: string, options: GeneratorOption
 	`;
 	await writeFile(join(outputDir, 'drizzle.config.ts'), content);
 }
-

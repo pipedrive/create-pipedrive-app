@@ -23,10 +23,7 @@ describe('SourceFileBuilder', () => {
 	});
 
 	it('merges default and named imports from the same source into one line', () => {
-		const out = new SourceFileBuilder()
-			.importDefault('express', 'express')
-			.import('express', ['Router'])
-			.build();
+		const out = new SourceFileBuilder().importDefault('express', 'express').import('express', ['Router']).build();
 		expect((out.match(/from 'express'/g) ?? []).length).toBe(1);
 		expect(out).toContain('express');
 		expect(out).toContain('Router');
@@ -43,9 +40,7 @@ describe('SourceFileBuilder', () => {
 	});
 
 	it('importDefaultIf skips when condition is false', () => {
-		const out = new SourceFileBuilder()
-			.importDefaultIf(false, './webhooks.js', 'webhooksRouter')
-			.build();
+		const out = new SourceFileBuilder().importDefaultIf(false, './webhooks.js', 'webhooksRouter').build();
 		expect(out).not.toContain('webhooks');
 	});
 
@@ -70,17 +65,14 @@ describe('SourceFileBuilder', () => {
 	});
 
 	it('exportDefault appends export statement', () => {
-		const out = new SourceFileBuilder()
-			.addBlock('const app = {};')
-			.exportDefault('app')
-			.build();
+		const out = new SourceFileBuilder().addBlock('const app = {};').exportDefault('app').build();
 		expect(out).toContain('export default app;');
 	});
 
 	it('exportDefault throws if called twice', () => {
-		expect(() =>
-			new SourceFileBuilder().exportDefault('a').exportDefault('b'),
-		).toThrow('exportDefault called more than once');
+		expect(() => new SourceFileBuilder().exportDefault('a').exportDefault('b')).toThrow(
+			'exportDefault called more than once',
+		);
 	});
 
 	it('importDefault throws if called twice with different names for same source', () => {
