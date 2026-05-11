@@ -7,6 +7,7 @@ export async function generateDatabase(outputDir: string, options: GeneratorOpti
 	await generateSchema(outputDir, options);
 	await generateDbClient(outputDir, options);
 	await generateMigrate(outputDir, options);
+	await generateMigrationSql(outputDir, options);
 }
 
 async function generateSchema(outputDir: string, options: GeneratorOptions): Promise<void> {
@@ -159,5 +160,67 @@ function migrateContent(database: GeneratorOptions['database']): string {
 		export function runMigrations(): void {
 			migrate(db, { migrationsFolder: 'src/database/migrations' });
 		}
+	`;
+}
+
+async function generateMigrationSql(outputDir: string, options: GeneratorOptions): Promise<void> {
+	const content = migrationSqlContent(options.database);
+	await writeFile(join(outputDir, 'src/database/migrations/0000_init.sql'), content);
+}
+
+function migrationSqlContent(database: GeneratorOptions['database']): string {
+	if (database === 'postgres') {
+		return dedent`
+			CREATE TABLE IF NOT EXISTS "pipedrive_tokens" (
+			  "pipedrive_company_id" INTEGER NOT NULL,
+			  "pipedrive_user_id" INTEGER NOT NULL,
+			  "access_token" VARCHAR(768) NOT NULL,
+			  "refresh_token" VARCHAR(768) NOT NULL,
+			  "token_type" VARCHAR(50) NOT NULL DEFAULT 'bearer',
+			  "access_token_expires_at" TIMESTAMP NOT NULL,
+			  "refresh_token_expires_at" TIMESTAMP NOT NULL,
+			  "scope" TEXT,
+			  "api_domain" VARCHAR(255) NOT NULL,
+			  "created_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+			  "updated_at" TIMESTAMP NOT NULL DEFAULT NOW(),
+			  PRIMARY KEY ("pipedrive_company_id", "pipedrive_user_id")
+			);
+		`;
+	}
+
+	if (database === 'mysql') {
+		return dedent`
+			CREATE TABLE IF NOT EXISTS \`pipedrive_tokens\` (
+			  \`pipedrive_company_id\` INT NOT NULL,
+			  \`pipedrive_user_id\` INT NOT NULL,
+			  \`access_token\` VARCHAR(768) NOT NULL,
+			  \`refresh_token\` VARCHAR(768) NOT NULL,
+			  \`token_type\` VARCHAR(50) NOT NULL DEFAULT 'bearer',
+			  \`access_token_expires_at\` TIMESTAMP NOT NULL,
+			  \`refresh_token_expires_at\` TIMESTAMP NOT NULL,
+			  \`scope\` TEXT,
+			  \`api_domain\` VARCHAR(255) NOT NULL,
+			  \`created_at\` TIMESTAMP NOT NULL DEFAULT NOW(),
+			  \`updated_at\` TIMESTAMP NOT NULL DEFAULT NOW(),
+			  PRIMARY KEY (\`pipedrive_company_id\`, \`pipedrive_user_id\`)
+			);
+		`;
+	}
+
+	return dedent`
+		CREATE TABLE IF NOT EXISTS "pipedrive_tokens" (
+		  "pipedrive_company_id" INTEGER NOT NULL,
+		  "pipedrive_user_id" INTEGER NOT NULL,
+		  "access_token" TEXT NOT NULL,
+		  "refresh_token" TEXT NOT NULL,
+		  "token_type" TEXT NOT NULL DEFAULT 'bearer',
+		  "access_token_expires_at" INTEGER NOT NULL,
+		  "refresh_token_expires_at" INTEGER NOT NULL,
+		  "scope" TEXT,
+		  "api_domain" TEXT NOT NULL,
+		  "created_at" INTEGER NOT NULL DEFAULT (unixepoch()),
+		  "updated_at" INTEGER NOT NULL DEFAULT (unixepoch()),
+		  PRIMARY KEY ("pipedrive_company_id", "pipedrive_user_id")
+		);
 	`;
 }
