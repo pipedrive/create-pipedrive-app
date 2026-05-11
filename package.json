@@ -11,7 +11,8 @@
     "format": "prettier --write src",
     "lint": "eslint src",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "generate": "tsx src/cli.ts apps/test-app"
   },
   "dependencies": {
     "@clack/prompts": "^0.9.0",
