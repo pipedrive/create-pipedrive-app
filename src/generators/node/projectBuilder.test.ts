@@ -41,7 +41,7 @@ describe('NodeProjectBuilder', () => {
 		expect(order).toEqual(['first', 'second', 'third']);
 	});
 
-	it('addOAuth returns the builder instance for chaining', () => {
+	it('addStep and when return the builder instance for chaining', () => {
 		const builder = new NodeProjectBuilder('/tmp', options);
 		expect(builder.addStep(spyStep([], 'x'))).toBe(builder);
 		expect(builder.when(false, () => {})).toBe(builder);
