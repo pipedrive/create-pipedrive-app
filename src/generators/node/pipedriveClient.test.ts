@@ -5,7 +5,11 @@ import { tmpdir } from 'os';
 import type { GeneratorOptions } from '../interface.js';
 
 const tmpDir = join(tmpdir(), 'cpa-pipedrive-client-test');
-const exists = (p: string) => access(p).then(() => true, () => false);
+const exists = (p: string) =>
+	access(p).then(
+		() => true,
+		() => false,
+	);
 const options: GeneratorOptions = {
 	projectName: 'test-app',
 	database: 'postgres',

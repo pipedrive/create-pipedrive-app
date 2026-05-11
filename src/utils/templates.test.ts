@@ -18,7 +18,7 @@ describe('routerMount', () => {
 
 describe('envVarAccess', () => {
 	it('returns process.env.KEY without fallback', () => {
-		expect(envVarAccess('PORT')).toBe("process.env.PORT");
+		expect(envVarAccess('PORT')).toBe('process.env.PORT');
 	});
 
 	it('returns process.env.KEY ?? fallback with fallback', () => {
@@ -28,10 +28,7 @@ describe('envVarAccess', () => {
 
 describe('RouterMountBuilder', () => {
 	it('builds mount statements in insertion order', () => {
-		const out = new RouterMountBuilder()
-			.add('/oauth', 'oauthRouter')
-			.add('/webhooks', 'webhooksRouter')
-			.build();
+		const out = new RouterMountBuilder().add('/oauth', 'oauthRouter').add('/webhooks', 'webhooksRouter').build();
 		expect(out).toBe("app.use('/oauth', oauthRouter);\napp.use('/webhooks', webhooksRouter);");
 	});
 

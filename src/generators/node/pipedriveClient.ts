@@ -3,15 +3,9 @@ import { join } from 'path';
 import { writeFile } from '../../utils/writeFile.js';
 import type { GeneratorOptions } from '../interface.js';
 
-export async function generatePipedriveClient(
-	outputDir: string,
-	_options: GeneratorOptions,
-): Promise<void> {
+export async function generatePipedriveClient(outputDir: string, _options: GeneratorOptions): Promise<void> {
 	// pipedrive v21 ships no .d.ts files; this shim satisfies tsc
-	await writeFile(
-		join(outputDir, 'src/pipedrive/pipedrive.d.ts'),
-		`declare module 'pipedrive';\n`,
-	);
+	await writeFile(join(outputDir, 'src/pipedrive/pipedrive.d.ts'), `declare module 'pipedrive';\n`);
 
 	await writeFile(
 		join(outputDir, 'src/pipedrive/client.ts'),

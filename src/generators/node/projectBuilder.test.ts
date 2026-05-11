@@ -11,14 +11,18 @@ const options: GeneratorOptions = {
 };
 
 function spyStep(tracker: string[], label: string): BuildStep {
-	return { execute: async () => { tracker.push(label); } };
+	return {
+		execute: async () => {
+			tracker.push(label);
+		},
+	};
 }
 
 describe('NodeProjectBuilder', () => {
 	it('when(true) executes the added step', async () => {
 		const executed: string[] = [];
 		await new NodeProjectBuilder('/tmp', options)
-			.when(true, b => b.addStep(spyStep(executed, 'webhooks')))
+			.when(true, (b) => b.addStep(spyStep(executed, 'webhooks')))
 			.build();
 		expect(executed).toContain('webhooks');
 	});
@@ -26,7 +30,7 @@ describe('NodeProjectBuilder', () => {
 	it('when(false) skips the step', async () => {
 		const executed: string[] = [];
 		await new NodeProjectBuilder('/tmp', options)
-			.when(false, b => b.addStep(spyStep(executed, 'webhooks')))
+			.when(false, (b) => b.addStep(spyStep(executed, 'webhooks')))
 			.build();
 		expect(executed).toHaveLength(0);
 	});

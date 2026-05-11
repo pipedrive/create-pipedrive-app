@@ -33,9 +33,9 @@ async function main(): Promise<void> {
 	if (installDeps) {
 		const spinner = clack.spinner();
 		spinner.start('Installing dependencies');
-		const ok = await new Promise<boolean>(resolve => {
+		const ok = await new Promise<boolean>((resolve) => {
 			const child = spawn('npm', ['install'], { cwd: outputDir, stdio: 'ignore' });
-			child.on('close', code => resolve(code === 0));
+			child.on('close', (code) => resolve(code === 0));
 		});
 		spinner.stop(ok ? 'Dependencies installed' : 'npm install failed — run it manually');
 	}

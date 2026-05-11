@@ -78,15 +78,15 @@ class PackageJsonStep implements BuildStep {
 				typecheck: 'tsc --noEmit',
 			},
 			dependencies: {
-				express: '^4.19.0',
+				'express': '^4.19.0',
 				'drizzle-orm': '^0.30.0',
-				pipedrive: '^21.0.0',
+				'pipedrive': '^21.0.0',
 			},
 			devDependencies: {
-				typescript: '^5.4.0',
+				'typescript': '^5.4.0',
 				'@types/express': '^4.17.0',
 				'@types/node': '^20.0.0',
-				tsx: '^4.7.0',
+				'tsx': '^4.7.0',
 			},
 		};
 		await writeFile(join(outputDir, 'package.json'), JSON.stringify(pkg, null, 2));
@@ -189,18 +189,42 @@ export class NodeProjectBuilder {
 		return this;
 	}
 
-	addOAuth(): this          { return this.addStep(new OAuthStep()); }
-	addDatabase(): this       { return this.addStep(new DatabaseStep()); }
-	addApp(): this            { return this.addStep(new AppStep()); }
-	addWebhooks(): this       { return this.addStep(new WebhooksStep()); }
-	addPostgres(): this       { return this.addStep(new PostgresDockerStep()); }
-	addMySQL(): this          { return this.addStep(new MySQLDockerStep()); }
-	addAppExtensions(): this  { return this.addStep(new AppExtensionsStep()); }
-	addPipedriveClient(): this { return this.addStep(new PipedriveClientStep()); }
-	addServerEntry(): this    { return this.addStep(new ServerEntryStep()); }
-	addPackageJson(): this    { return this.addStep(new PackageJsonStep()); }
-	addTsConfig(): this       { return this.addStep(new TsConfigStep()); }
-	addEnvExample(): this     { return this.addStep(new EnvExampleStep()); }
+	addOAuth(): this {
+		return this.addStep(new OAuthStep());
+	}
+	addDatabase(): this {
+		return this.addStep(new DatabaseStep());
+	}
+	addApp(): this {
+		return this.addStep(new AppStep());
+	}
+	addWebhooks(): this {
+		return this.addStep(new WebhooksStep());
+	}
+	addPostgres(): this {
+		return this.addStep(new PostgresDockerStep());
+	}
+	addMySQL(): this {
+		return this.addStep(new MySQLDockerStep());
+	}
+	addAppExtensions(): this {
+		return this.addStep(new AppExtensionsStep());
+	}
+	addPipedriveClient(): this {
+		return this.addStep(new PipedriveClientStep());
+	}
+	addServerEntry(): this {
+		return this.addStep(new ServerEntryStep());
+	}
+	addPackageJson(): this {
+		return this.addStep(new PackageJsonStep());
+	}
+	addTsConfig(): this {
+		return this.addStep(new TsConfigStep());
+	}
+	addEnvExample(): this {
+		return this.addStep(new EnvExampleStep());
+	}
 
 	when(condition: boolean, fn: (b: this) => void): this {
 		if (condition) fn(this);
