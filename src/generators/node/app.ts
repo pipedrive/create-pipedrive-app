@@ -1,41 +1,29 @@
-import dedent from 'dedent';
 import { join } from 'path';
 import { writeFile } from '../../utils/writeFile.js';
 import type { GeneratorOptions } from '../interface.js';
+import { SourceFileBuilder } from '../../utils/sourceFileBuilder.js';
+import { routerMount } from '../../utils/templates.js';
 
 export async function generateApp(outputDir: string, options: GeneratorOptions): Promise<void> {
-	const webhooksImport = options.webhooks ? `import webhooksRouter from './webhooks/index.js';` : '';
-	const panelImport = options.appExtensions.includes('custom-panel')
-		? `import panelRouter from './app-extensions/panel/index.js';`
-		: '';
-	const modalImport = options.appExtensions.includes('custom-modal')
-		? `import modalRouter from './app-extensions/modal/index.js';`
-		: '';
+	const hasPanel = options.appExtensions.includes('custom-panel');
+	const hasModal = options.appExtensions.includes('custom-modal');
 
-	const webhooksMount = options.webhooks ? `app.use('/webhooks', webhooksRouter);` : '';
-	const panelMount = options.appExtensions.includes('custom-panel')
-		? `app.use('/extensions/panel', panelRouter);`
-		: '';
-	const modalMount = options.appExtensions.includes('custom-modal')
-		? `app.use('/extensions/modal', modalRouter);`
-		: '';
+	const mounts = [
+		routerMount('/oauth', 'oauthRouter'),
+		...(options.webhooks ? [routerMount('/webhooks', 'webhooksRouter')] : []),
+		...(hasPanel ? [routerMount('/extensions/panel', 'panelRouter')] : []),
+		...(hasModal ? [routerMount('/extensions/modal', 'modalRouter')] : []),
+	].join('\n');
 
-	const content = dedent`
-    import express from 'express';
-    import oauthRouter from './oauth/index.js';
-    ${webhooksImport}
-    ${panelImport}
-    ${modalImport}
-
-    const app = express();
-
-    app.use('/oauth', oauthRouter);
-    ${webhooksMount}
-    ${panelMount}
-    ${modalMount}
-
-    export default app;
-  `;
+	const content = new SourceFileBuilder()
+		.importDefault('express', 'express')
+		.importDefault('./oauth/index.js', 'oauthRouter')
+		.importDefaultIf(options.webhooks, './webhooks/index.js', 'webhooksRouter')
+		.importDefaultIf(hasPanel, './app-extensions/panel/index.js', 'panelRouter')
+		.importDefaultIf(hasModal, './app-extensions/modal/index.js', 'modalRouter')
+		.addBlock(`const app = express();\n\n${mounts}`)
+		.exportDefault('app')
+		.build();
 
 	await writeFile(join(outputDir, 'src/app.ts'), content);
 }
