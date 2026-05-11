@@ -5,6 +5,7 @@ import type { GeneratorOptions } from '../interface.js';
 
 export async function generateDatabase(outputDir: string, options: GeneratorOptions): Promise<void> {
 	await generateSchema(outputDir, options);
+	await generateDbClient(outputDir, options);
 }
 
 async function generateSchema(outputDir: string, options: GeneratorOptions): Promise<void> {
@@ -81,5 +82,43 @@ function schemaContent(database: GeneratorOptions['database']): string {
 			},
 			(table) => [primaryKey({ columns: [table.pipedriveCompanyId, table.pipedriveUserId] })],
 		);
+	`;
+}
+
+async function generateDbClient(outputDir: string, options: GeneratorOptions): Promise<void> {
+	const content = dbClientContent(options.database);
+	await writeFile(join(outputDir, 'src/database/index.ts'), content);
+}
+
+function dbClientContent(database: GeneratorOptions['database']): string {
+	if (database === 'postgres') {
+		return dedent`
+			import { drizzle } from 'drizzle-orm/postgres-js';
+			import postgres from 'postgres';
+			import * as schema from './schema.js';
+
+			const client = postgres(process.env.DATABASE_URL!);
+			export const db = drizzle(client, { schema });
+		`;
+	}
+
+	if (database === 'mysql') {
+		return dedent`
+			import { drizzle } from 'drizzle-orm/mysql2';
+			import mysql from 'mysql2/promise';
+			import * as schema from './schema.js';
+
+			const connection = await mysql.createConnection(process.env.DATABASE_URL!);
+			export const db = drizzle(connection, { schema });
+		`;
+	}
+
+	return dedent`
+		import { drizzle } from 'drizzle-orm/better-sqlite3';
+		import Database from 'better-sqlite3';
+		import * as schema from './schema.js';
+
+		const sqlite = new Database(process.env.DATABASE_URL ?? './data.db');
+		export const db = drizzle(sqlite, { schema });
 	`;
 }
