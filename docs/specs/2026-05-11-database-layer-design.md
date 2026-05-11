@@ -34,8 +34,8 @@ Table name: `pipedrive_tokens`
 
 | Column | Type | Notes |
 |---|---|---|
-| `id` | serial PK | |
-| `company_id` | integer UNIQUE NOT NULL | from Pipedrive `/users/me` |
+| `pipedrive_company_id` | integer NOT NULL | from `/users/me`, part of composite PK |
+| `pipedrive_user_id` | integer NOT NULL | from `/users/me`, part of composite PK |
 | `access_token` | varchar(768) NOT NULL | Pipedrive recommends 768 min |
 | `refresh_token` | varchar(768) NOT NULL | |
 | `token_type` | varchar(50) NOT NULL DEFAULT 'bearer' | |
@@ -46,9 +46,16 @@ Table name: `pipedrive_tokens`
 | `created_at` | timestamp NOT NULL DEFAULT now() | |
 | `updated_at` | timestamp NOT NULL DEFAULT now() | |
 
+**Primary key:** composite on `(pipedrive_company_id, pipedrive_user_id)` — each Pipedrive user within a company gets their own token row.
+
+In Drizzle:
+```ts
+(table) => [primaryKey({ columns: [table.pipedriveCompanyId, table.pipedriveUserId] })]
+```
+
 ### Installation status
 
-No separate installations table. A company is considered "installed" if a row exists in `pipedrive_tokens` with a non-expired `refresh_token_expires_at`. If the refresh token is absent or expired, the app is not installed.
+No separate installations table. A user+company combination is considered "installed" if a row exists in `pipedrive_tokens` with a non-expired `refresh_token_expires_at`. If the row is absent or the refresh token is expired, the app is not installed for that user.
 
 ## Driver Mapping
 
@@ -100,5 +107,5 @@ Tests per database choice:
 - `npm run db:migrate` runs `drizzle-kit migrate` as a standalone command
 - SQLite uses a local file (`./data.db`), no Docker required
 - Postgres and MySQL include `docker-compose.yml` with healthchecks
-- `pipedrive_tokens` table is created by the initial migration
-- Installation status is determined by the presence of a non-expired `refresh_token_expires_at` row — no separate installations table
+- `pipedrive_tokens` table is created by the initial migration with composite PK on `(pipedrive_company_id, pipedrive_user_id)`
+- Installation status is determined by the presence of a non-expired `refresh_token_expires_at` row for the given company+user pair — no separate installations table
