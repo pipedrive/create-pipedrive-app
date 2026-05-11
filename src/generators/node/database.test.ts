@@ -184,3 +184,30 @@ describe('generateDatabase — drizzle.config.ts', () => {
 		expect(content).toContain('sqlite');
 	});
 });
+
+describe('generateDatabase — docker-compose.yml', () => {
+	it('generates docker-compose.yml for postgres with healthcheck', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(true);
+		const content = await read('docker-compose.yml');
+		expect(content).toContain('postgres:16');
+		expect(content).toContain('pg_isready');
+		expect(content).toContain('healthcheck');
+	});
+
+	it('generates docker-compose.yml for mysql with healthcheck', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, mysqlOptions);
+		const content = await read('docker-compose.yml');
+		expect(content).toContain('mysql:8');
+		expect(content).toContain('mysqladmin');
+		expect(content).toContain('healthcheck');
+	});
+
+	it('does not generate docker-compose.yml for sqlite', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, sqliteOptions);
+		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(false);
+	});
+});

@@ -8,8 +8,6 @@ export const nodeGenerator: Generator = {
 			.addDatabase()
 			.addApp()
 			.when(options.webhooks, (b) => b.addWebhooks())
-			.when(options.database === 'postgres', (b) => b.addPostgres())
-			.when(options.database === 'mysql', (b) => b.addMySQL())
 			.when(options.appExtensions.length > 0, (b) => b.addAppExtensions())
 			.addPipedriveClient()
 			.addServerEntry()

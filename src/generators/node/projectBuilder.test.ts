@@ -67,24 +67,3 @@ describe('NodeProjectBuilder', () => {
 	});
 });
 
-describe('PostgresDockerStep', () => {
-	it('generates docker-compose.yml with healthcheck', async () => {
-		await new NodeProjectBuilder(tmpDir, options).addPostgres().build();
-		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(true);
-		const content = await read('docker-compose.yml');
-		expect(content).toContain('postgres:16');
-		expect(content).toContain('healthcheck');
-		expect(content).toContain('pg_isready');
-	});
-});
-
-describe('MySQLDockerStep', () => {
-	it('generates docker-compose.yml with healthcheck', async () => {
-		const mysqlOptions: GeneratorOptions = { ...options, database: 'mysql' };
-		await new NodeProjectBuilder(tmpDir, mysqlOptions).addMySQL().build();
-		const content = await read('docker-compose.yml');
-		expect(content).toContain('mysql:8');
-		expect(content).toContain('healthcheck');
-		expect(content).toContain('mysqladmin');
-	});
-});

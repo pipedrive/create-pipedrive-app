@@ -9,6 +9,9 @@ export async function generateDatabase(outputDir: string, options: GeneratorOpti
 	await generateMigrate(outputDir, options);
 	await generateMigrationSql(outputDir, options);
 	await generateDrizzleConfig(outputDir, options);
+	if (options.database === 'postgres' || options.database === 'mysql') {
+		await generateDockerCompose(outputDir, options);
+	}
 }
 
 async function generateSchema(outputDir: string, options: GeneratorOptions): Promise<void> {
@@ -230,6 +233,55 @@ function migrationSqlContent(database: GeneratorOptions['database']): string {
 		  PRIMARY KEY ("pipedrive_company_id", "pipedrive_user_id")
 		);
 	`;
+}
+
+async function generateDockerCompose(outputDir: string, options: GeneratorOptions): Promise<void> {
+	const content =
+		options.database === 'postgres'
+			? dedent`
+				services:
+				  db:
+				    image: postgres:16
+				    environment:
+				      POSTGRES_USER: app
+				      POSTGRES_PASSWORD: app
+				      POSTGRES_DB: ${options.projectName}
+				    ports:
+				      - '5432:5432'
+				    volumes:
+				      - db_data:/var/lib/postgresql/data
+				    healthcheck:
+				      test: ['CMD', 'pg_isready', '-U', 'app']
+				      interval: 5s
+				      timeout: 5s
+				      retries: 5
+
+				volumes:
+				  db_data:
+			`
+			: dedent`
+				services:
+				  db:
+				    image: mysql:8
+				    environment:
+				      MYSQL_ROOT_PASSWORD: app
+				      MYSQL_DATABASE: ${options.projectName}
+				      MYSQL_USER: app
+				      MYSQL_PASSWORD: app
+				    ports:
+				      - '3306:3306'
+				    volumes:
+				      - db_data:/var/lib/mysql
+				    healthcheck:
+				      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'app', '--password=app']
+				      interval: 5s
+				      timeout: 5s
+				      retries: 5
+
+				volumes:
+				  db_data:
+			`;
+	await writeFile(join(outputDir, 'docker-compose.yml'), content);
 }
 
 async function generateDrizzleConfig(outputDir: string, options: GeneratorOptions): Promise<void> {

@@ -70,6 +70,32 @@ cli.ts (collects prompts)
 - **New generator**: add `src/generators/node/<feature>.ts` + `.test.ts`, call from `nodeGenerator`
 - **Modify generated scaffold**: edit template strings in the corresponding generator file
 
+## Builder Pattern
+
+The scaffold generator uses `NodeProjectBuilder` + `BuildStep` (`src/generators/node/projectBuilder.ts`) to compose features without scattering conditional logic across generators.
+
+**How it works:**
+- `BuildStep` interface: `execute(outputDir: string, options: GeneratorOptions): Promise<void>`
+- Each feature is a private class implementing `BuildStep` (e.g. `OAuthStep`, `DatabaseStep`)
+- `NodeProjectBuilder` queues steps and runs them in order via `.build()`
+- Named methods like `.addOAuth()`, `.addDatabase()` push steps unconditionally
+- `when(condition, fn)` adds steps conditionally at the call site in `index.ts` — never inside `execute()`
+
+**Adding a new feature:**
+1. Create a private `BuildStep` class in `projectBuilder.ts`
+2. Add a named method to `NodeProjectBuilder`: `addMyFeature(): this { return this.addStep(new MyFeatureStep()); }`
+3. Call it in `index.ts`, via `when()` if conditional:
+   ```ts
+   .when(options.webhooks, b => b.addWebhooks())
+   ```
+
+**Rule: never put conditional logic inside `execute()`** — use `when()` at the call site. Steps must be unconditional internally; the builder chain controls what runs.
+
+**File content helpers:**
+- Use `SourceFileBuilder` (`src/utils/sourceFileBuilder.ts`) for TypeScript files with conditional imports or blocks — handles deduplication and formatting automatically
+- Use `RouterMountBuilder` (`src/utils/templates.ts`) to accumulate `app.use()` calls conditionally
+- Use plain `dedent` for static content (YAML, JSON, `.env`, SQL)
+
 ## MVP Scope
 
 The initial implementation targets:
