@@ -146,7 +146,6 @@ class EnvExampleStep implements BuildStep {
 	}
 }
 
-
 export class NodeProjectBuilder {
 	private steps: BuildStep[] = [];
 

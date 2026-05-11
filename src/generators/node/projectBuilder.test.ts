@@ -1,22 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { access, readFile, rm } from 'node:fs/promises';
-import { join } from 'node:path';
-import { tmpdir } from 'node:os';
+import { describe, expect, it } from 'vitest';
 import type { GeneratorOptions } from '../interface.js';
 import { NodeProjectBuilder } from './projectBuilder.js';
 import type { BuildStep } from './projectBuilder.js';
-
-const tmpDir = join(tmpdir(), 'cpa-projectbuilder-test');
-const exists = (p: string) =>
-	access(p).then(
-		() => true,
-		() => false,
-	);
-const read = (p: string) => readFile(join(tmpDir, p), 'utf-8');
-
-afterEach(async () => {
-	await rm(tmpDir, { recursive: true, force: true });
-});
 
 const options: GeneratorOptions = {
 	projectName: 'test-app',
@@ -66,4 +51,3 @@ describe('NodeProjectBuilder', () => {
 		expect(builder.when(false, () => {})).toBe(builder);
 	});
 });
-
