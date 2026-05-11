@@ -33,13 +33,16 @@ async function generateServerEntry(outputDir: string): Promise<void> {
 	await writeFile(
 		join(outputDir, 'src/index.ts'),
 		dedent`
-      import app from './app.js';
+			import { runMigrations } from './database/migrate.js';
+			import app from './app.js';
 
-      const PORT = process.env.PORT ?? '3000';
-      app.listen(PORT, () => {
-        console.log(\`Server running on port \${PORT}\`);
-      });
-    `,
+			const PORT = process.env.PORT ?? '3000';
+
+			await runMigrations();
+			app.listen(PORT, () => {
+				console.log(\`Server running on port \${PORT}\`);
+			});
+		`,
 	);
 }
 
