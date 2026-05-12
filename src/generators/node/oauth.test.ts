@@ -68,3 +68,51 @@ describe('generateOauth — src/oauth/state.ts', () => {
 		expect(content).toContain('CLIENT_SECRET');
 	});
 });
+
+describe('generateOauth — src/oauth/index.ts routes', () => {
+	it('has /redirect route', async () => {
+		const { generateOauth } = await import('./oauth.js');
+		await generateOauth(tmpDir, options);
+		const content = await readFile(join(tmpDir, 'src/oauth/index.ts'), 'utf-8');
+		expect(content).toContain("'/redirect'");
+	});
+
+	it('has /callback route', async () => {
+		const { generateOauth } = await import('./oauth.js');
+		await generateOauth(tmpDir, options);
+		const content = await readFile(join(tmpDir, 'src/oauth/index.ts'), 'utf-8');
+		expect(content).toContain("'/callback'");
+	});
+
+	it('imports createState and verifyState from state.js', async () => {
+		const { generateOauth } = await import('./oauth.js');
+		await generateOauth(tmpDir, options);
+		const content = await readFile(join(tmpDir, 'src/oauth/index.ts'), 'utf-8');
+		expect(content).toContain("from './state.js'");
+		expect(content).toContain('createState');
+		expect(content).toContain('verifyState');
+	});
+
+	it('imports upsertToken from tokenRepository', async () => {
+		const { generateOauth } = await import('./oauth.js');
+		await generateOauth(tmpDir, options);
+		const content = await readFile(join(tmpDir, 'src/oauth/index.ts'), 'utf-8');
+		expect(content).toContain("from '../database/tokenRepository.js'");
+		expect(content).toContain('upsertToken');
+	});
+
+	it('calls oauth2.authorize to exchange code', async () => {
+		const { generateOauth } = await import('./oauth.js');
+		await generateOauth(tmpDir, options);
+		const content = await readFile(join(tmpDir, 'src/oauth/index.ts'), 'utf-8');
+		expect(content).toContain('oauth2.authorize');
+	});
+
+	it('fetches /v1/users/me to resolve company and user ID', async () => {
+		const { generateOauth } = await import('./oauth.js');
+		await generateOauth(tmpDir, options);
+		const content = await readFile(join(tmpDir, 'src/oauth/index.ts'), 'utf-8');
+		expect(content).toContain('/v1/users/me');
+		expect(content).toContain('company_id');
+	});
+});

@@ -53,6 +53,55 @@ async function generateOauthState(outputDir: string): Promise<void> {
 async function generateOauthRouter(outputDir: string): Promise<void> {
 	await writeFile(
 		join(outputDir, 'src/oauth/index.ts'),
-		`import { Router } from 'express';\n\nexport default Router();`,
+		dedent`
+			import { Router } from 'express';
+			import * as v2 from 'pipedrive/v2';
+			import { upsertToken } from '../database/tokenRepository.js';
+			import { createState, verifyState } from './state.js';
+
+			const oauth2 = new v2.OAuth2Configuration({
+				clientId: process.env.PIPEDRIVE_CLIENT_ID ?? '',
+				clientSecret: process.env.PIPEDRIVE_CLIENT_SECRET ?? '',
+				redirectUri: process.env.PIPEDRIVE_REDIRECT_URI ?? '',
+			});
+
+			const router = Router();
+
+			router.get('/redirect', (_req, res) => {
+				const state = createState();
+				res.redirect(\`\${oauth2.authorizationUrl}&state=\${encodeURIComponent(state)}\`);
+			});
+
+			router.get('/callback', async (req, res) => {
+				const { code, state } = req.query as { code?: string; state?: string };
+
+				if (!state || !verifyState(state)) {
+					res.status(400).send('Invalid state parameter');
+					return;
+				}
+
+				if (!code) {
+					res.status(400).send('Missing authorization code');
+					return;
+				}
+
+				try {
+					const token = await oauth2.authorize(code);
+
+					const response = await fetch(\`https://\${token.api_domain}/v1/users/me\`, {
+						headers: { Authorization: \`Bearer \${token.access_token}\` },
+					});
+					const { data } = (await response.json()) as { data: { id: number; company_id: number } };
+
+					await upsertToken(data.company_id, data.id, token);
+					res.redirect('/');
+				} catch (err) {
+					const message = err instanceof Error ? err.message : 'OAuth error';
+					res.status(500).send(message);
+				}
+			});
+
+			export default router;
+		`,
 	);
 }
