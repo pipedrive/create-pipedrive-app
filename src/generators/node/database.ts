@@ -110,7 +110,12 @@ function dbClientContent(database: GeneratorOptions['database']): string {
 			import postgres from 'postgres';
 			import * as schema from './schema.js';
 
-			const client = postgres(process.env.DATABASE_URL!);
+			const client = postgres(process.env.DATABASE_URL!, {
+				onnotice: (notice) => {
+					if (notice.code === '42P06' || notice.code === '42P07') return;
+					console.warn(notice);
+				},
+			});
 			export const db = drizzle(client, { schema });
 		`;
 	}
@@ -122,7 +127,7 @@ function dbClientContent(database: GeneratorOptions['database']): string {
 			import * as schema from './schema.js';
 
 			const pool = mysql.createPool(process.env.DATABASE_URL!);
-			export const db = drizzle(pool, { schema });
+			export const db = drizzle(pool, { schema, mode: 'default' });
 		`;
 	}
 
@@ -264,7 +269,7 @@ async function generateDockerCompose(outputDir: string, options: GeneratorOption
 				    ports:
 				      - '5432:5432'
 				    volumes:
-				      - db_data:/var/lib/postgresql/data
+				      - postgres_data:/var/lib/postgresql/data
 				    healthcheck:
 				      test: ['CMD', 'pg_isready', '-U', 'app']
 				      interval: 5s
@@ -272,7 +277,7 @@ async function generateDockerCompose(outputDir: string, options: GeneratorOption
 				      retries: 5
 
 				volumes:
-				  db_data:
+				  postgres_data:
 			`
 			: dedent`
 				services:
@@ -284,9 +289,9 @@ async function generateDockerCompose(outputDir: string, options: GeneratorOption
 				      MYSQL_USER: app
 				      MYSQL_PASSWORD: app
 				    ports:
-				      - '3306:3306'
+				      - '127.0.0.1:3307:3306'
 				    volumes:
-				      - db_data:/var/lib/mysql
+				      - mysql_data:/var/lib/mysql
 				    healthcheck:
 				      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'app', '--password=app']
 				      interval: 5s
@@ -294,7 +299,7 @@ async function generateDockerCompose(outputDir: string, options: GeneratorOption
 				      retries: 5
 
 				volumes:
-				  db_data:
+				  mysql_data:
 			`;
 	await writeFile(join(outputDir, 'docker-compose.yml'), content);
 }
