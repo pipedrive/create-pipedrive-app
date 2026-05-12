@@ -88,9 +88,14 @@ async function generateOauthRouter(outputDir: string): Promise<void> {
 				try {
 					const token = await oauth2.authorize(code);
 
+					if (!token.api_domain) throw new Error('Missing api_domain in token response');
+
 					const response = await fetch(\`https://\${token.api_domain}/v1/users/me\`, {
 						headers: { Authorization: \`Bearer \${token.access_token}\` },
 					});
+
+					if (!response.ok) throw new Error(\`/v1/users/me returned \${response.status}\`);
+
 					const { data } = (await response.json()) as { data: { id: number; company_id: number } };
 
 					await upsertToken(data.company_id, data.id, token);
