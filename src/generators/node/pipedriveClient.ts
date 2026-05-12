@@ -11,16 +11,16 @@ export async function generatePipedriveClient(outputDir: string, _options: Gener
 			import * as v1 from 'pipedrive/v1';
 			import { getTokenByCompany, upsertToken } from '../database/tokenRepository.js';
 
-			const oauth2 = new v2.OAuth2Configuration({
-				clientId: process.env.PIPEDRIVE_CLIENT_ID ?? '',
-				clientSecret: process.env.PIPEDRIVE_CLIENT_SECRET ?? '',
-				redirectUri: process.env.PIPEDRIVE_REDIRECT_URI ?? '',
-			});
-
 			export async function getClient(companyId: number) {
+				const oauth2 = new v2.OAuth2Configuration({
+					clientId: process.env.PIPEDRIVE_CLIENT_ID ?? '',
+					clientSecret: process.env.PIPEDRIVE_CLIENT_SECRET ?? '',
+					redirectUri: process.env.PIPEDRIVE_REDIRECT_URI ?? '',
+				});
 				const stored = await getTokenByCompany(companyId);
 				oauth2.updateToken(stored?.token ?? null);
-				// For multi-user access, accept userId as a second parameter and use getToken(companyId, userId).
+				// For per-user access, add userId as a second parameter,
+				// call getToken(companyId, userId) instead, and pass userId directly to upsertToken.
 				oauth2.onTokenUpdate = (token) => {
 					if (stored) upsertToken(stored.companyId, stored.userId, token);
 				};
