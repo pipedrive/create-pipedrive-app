@@ -64,5 +64,7 @@ describe('generateOauth — src/oauth/state.ts', () => {
 		const content = await readFile(join(tmpDir, 'src/oauth/state.ts'), 'utf-8');
 		expect(content).toContain('createHmac');
 		expect(content).toContain("'sha256'");
+		expect(content).toContain('timingSafeEqual');
+		expect(content).toContain('CLIENT_SECRET');
 	});
 });
