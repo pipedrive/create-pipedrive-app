@@ -72,6 +72,9 @@ describe('generateDatabase — src/database/index.ts', () => {
 		const content = await read('src/database/index.ts');
 		expect(content).toContain('postgres');
 		expect(content).toContain('drizzle-orm/postgres-js');
+		expect(content).toContain('onnotice');
+		expect(content).toContain("'42P06'");
+		expect(content).toContain("'42P07'");
 		expect(content).toContain('export');
 	});
 

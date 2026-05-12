@@ -110,7 +110,12 @@ function dbClientContent(database: GeneratorOptions['database']): string {
 			import postgres from 'postgres';
 			import * as schema from './schema.js';
 
-			const client = postgres(process.env.DATABASE_URL!);
+			const client = postgres(process.env.DATABASE_URL!, {
+				onnotice: (notice) => {
+					if (notice.code === '42P06' || notice.code === '42P07') return;
+					console.warn(notice);
+				},
+			});
 			export const db = drizzle(client, { schema });
 		`;
 	}
