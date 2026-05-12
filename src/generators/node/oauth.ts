@@ -36,8 +36,8 @@ async function generateOauthState(outputDir: string): Promise<void> {
 				const encoded = state.slice(0, dot);
 				const sig = state.slice(dot + 1);
 				const expected = createHmac('sha256', CLIENT_SECRET).update(encoded).digest('base64url');
-				const sigBuf = Buffer.from(sig);
-				const expectedBuf = Buffer.from(expected);
+				const sigBuf = Buffer.from(sig, 'base64url');
+				const expectedBuf = Buffer.from(expected, 'base64url');
 				if (sigBuf.length !== expectedBuf.length || !timingSafeEqual(sigBuf, expectedBuf)) return false;
 				try {
 					const { exp } = JSON.parse(Buffer.from(encoded, 'base64url').toString()) as { exp: number };
