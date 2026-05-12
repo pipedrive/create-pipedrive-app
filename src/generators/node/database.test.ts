@@ -211,3 +211,55 @@ describe('generateDatabase — docker-compose.yml', () => {
 		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(false);
 	});
 });
+
+describe('generateDatabase — tokenRepository.ts', () => {
+	it('generates src/database/tokenRepository.ts', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		expect(await exists(join(tmpDir, 'src/database/tokenRepository.ts'))).toBe(true);
+	});
+
+	it('exports getToken, getTokenByCompany, upsertToken', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const content = await read('src/database/tokenRepository.ts');
+		expect(content).toContain('export async function getToken');
+		expect(content).toContain('export async function getTokenByCompany');
+		expect(content).toContain('export async function upsertToken');
+	});
+
+	it('exports StoredToken type', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const content = await read('src/database/tokenRepository.ts');
+		expect(content).toContain('StoredToken');
+	});
+
+	it('imports TokenResponse from pipedrive/v2', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const content = await read('src/database/tokenRepository.ts');
+		expect(content).toContain("from 'pipedrive/v2'");
+	});
+
+	it('postgres uses onConflictDoUpdate', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const content = await read('src/database/tokenRepository.ts');
+		expect(content).toContain('onConflictDoUpdate');
+	});
+
+	it('mysql uses onDuplicateKeyUpdate', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, mysqlOptions);
+		const content = await read('src/database/tokenRepository.ts');
+		expect(content).toContain('onDuplicateKeyUpdate');
+	});
+
+	it('sqlite uses onConflictDoUpdate', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, sqliteOptions);
+		const content = await read('src/database/tokenRepository.ts');
+		expect(content).toContain('onConflictDoUpdate');
+	});
+});

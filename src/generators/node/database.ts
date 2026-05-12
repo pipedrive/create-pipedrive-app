@@ -9,6 +9,7 @@ export async function generateDatabase(outputDir: string, options: GeneratorOpti
 	await generateMigrate(outputDir, options);
 	await generateMigrationSql(outputDir, options);
 	await generateDrizzleConfig(outputDir, options);
+	await generateTokenRepository(outputDir, options);
 	if (options.database === 'postgres' || options.database === 'mysql') {
 		await generateDockerCompose(outputDir, options);
 	}
@@ -232,6 +233,167 @@ function migrationSqlContent(database: GeneratorOptions['database']): string {
 		  "updated_at" INTEGER NOT NULL DEFAULT (unixepoch()),
 		  PRIMARY KEY ("pipedrive_company_id", "pipedrive_user_id")
 		);
+	`;
+}
+
+async function generateTokenRepository(outputDir: string, options: GeneratorOptions): Promise<void> {
+	await writeFile(join(outputDir, 'src/database/tokenRepository.ts'), tokenRepositoryContent(options.database));
+}
+
+function tokenRepositoryContent(database: GeneratorOptions['database']): string {
+	if (database === 'mysql') {
+		return dedent`
+			import { and, desc, eq } from 'drizzle-orm';
+			import type { TokenResponse } from 'pipedrive/v2';
+			import { db } from './index.js';
+			import { pipedriveTokens } from './schema.js';
+
+			const REFRESH_TOKEN_TTL_MS = 60 * 24 * 60 * 60 * 1000;
+
+			export type StoredToken = { companyId: number; userId: number; token: TokenResponse };
+
+			function toTokenResponse(row: typeof pipedriveTokens.$inferSelect): TokenResponse {
+				return {
+					access_token: row.accessToken,
+					refresh_token: row.refreshToken,
+					token_type: row.tokenType,
+					expires_in: Math.max(0, Math.floor((row.accessTokenExpiresAt.getTime() - Date.now()) / 1000)),
+					scope: row.scope ?? '',
+					api_domain: row.apiDomain,
+				};
+			}
+
+			export async function getToken(companyId: number, userId: number): Promise<StoredToken | null> {
+				const rows = await db
+					.select()
+					.from(pipedriveTokens)
+					.where(and(eq(pipedriveTokens.pipedriveCompanyId, companyId), eq(pipedriveTokens.pipedriveUserId, userId)))
+					.limit(1);
+				if (!rows[0]) return null;
+				return { companyId, userId, token: toTokenResponse(rows[0]) };
+			}
+
+			export async function getTokenByCompany(companyId: number): Promise<StoredToken | null> {
+				const rows = await db
+					.select()
+					.from(pipedriveTokens)
+					.where(eq(pipedriveTokens.pipedriveCompanyId, companyId))
+					.orderBy(desc(pipedriveTokens.updatedAt))
+					.limit(1);
+				if (!rows[0]) return null;
+				return { companyId, userId: rows[0].pipedriveUserId, token: toTokenResponse(rows[0]) };
+			}
+
+			export async function upsertToken(companyId: number, userId: number, token: TokenResponse): Promise<void> {
+				const now = new Date();
+				const accessTokenExpiresAt = new Date(Date.now() + token.expires_in * 1000);
+				const refreshTokenExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
+				await db
+					.insert(pipedriveTokens)
+					.values({
+						pipedriveCompanyId: companyId,
+						pipedriveUserId: userId,
+						accessToken: token.access_token,
+						refreshToken: token.refresh_token,
+						tokenType: token.token_type,
+						accessTokenExpiresAt,
+						refreshTokenExpiresAt,
+						scope: token.scope,
+						apiDomain: token.api_domain,
+						createdAt: now,
+						updatedAt: now,
+					})
+					.onDuplicateKeyUpdate({
+						set: {
+							accessToken: token.access_token,
+							refreshToken: token.refresh_token,
+							tokenType: token.token_type,
+							accessTokenExpiresAt,
+							refreshTokenExpiresAt,
+							scope: token.scope,
+							apiDomain: token.api_domain,
+							updatedAt: now,
+						},
+					});
+			}
+		`;
+	}
+
+	return dedent`
+		import { and, desc, eq } from 'drizzle-orm';
+		import type { TokenResponse } from 'pipedrive/v2';
+		import { db } from './index.js';
+		import { pipedriveTokens } from './schema.js';
+
+		const REFRESH_TOKEN_TTL_MS = 60 * 24 * 60 * 60 * 1000;
+
+		export type StoredToken = { companyId: number; userId: number; token: TokenResponse };
+
+		function toTokenResponse(row: typeof pipedriveTokens.$inferSelect): TokenResponse {
+			return {
+				access_token: row.accessToken,
+				refresh_token: row.refreshToken,
+				token_type: row.tokenType,
+				expires_in: Math.max(0, Math.floor((row.accessTokenExpiresAt.getTime() - Date.now()) / 1000)),
+				scope: row.scope ?? '',
+				api_domain: row.apiDomain,
+			};
+		}
+
+		export async function getToken(companyId: number, userId: number): Promise<StoredToken | null> {
+			const rows = await db
+				.select()
+				.from(pipedriveTokens)
+				.where(and(eq(pipedriveTokens.pipedriveCompanyId, companyId), eq(pipedriveTokens.pipedriveUserId, userId)))
+				.limit(1);
+			if (!rows[0]) return null;
+			return { companyId, userId, token: toTokenResponse(rows[0]) };
+		}
+
+		export async function getTokenByCompany(companyId: number): Promise<StoredToken | null> {
+			const rows = await db
+				.select()
+				.from(pipedriveTokens)
+				.where(eq(pipedriveTokens.pipedriveCompanyId, companyId))
+				.orderBy(desc(pipedriveTokens.updatedAt))
+				.limit(1);
+			if (!rows[0]) return null;
+			return { companyId, userId: rows[0].pipedriveUserId, token: toTokenResponse(rows[0]) };
+		}
+
+		export async function upsertToken(companyId: number, userId: number, token: TokenResponse): Promise<void> {
+			const now = new Date();
+			const accessTokenExpiresAt = new Date(Date.now() + token.expires_in * 1000);
+			const refreshTokenExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
+			await db
+				.insert(pipedriveTokens)
+				.values({
+					pipedriveCompanyId: companyId,
+					pipedriveUserId: userId,
+					accessToken: token.access_token,
+					refreshToken: token.refresh_token,
+					tokenType: token.token_type,
+					accessTokenExpiresAt,
+					refreshTokenExpiresAt,
+					scope: token.scope,
+					apiDomain: token.api_domain,
+					createdAt: now,
+					updatedAt: now,
+				})
+				.onConflictDoUpdate({
+					target: [pipedriveTokens.pipedriveCompanyId, pipedriveTokens.pipedriveUserId],
+					set: {
+						accessToken: token.access_token,
+						refreshToken: token.refresh_token,
+						tokenType: token.token_type,
+						accessTokenExpiresAt,
+						refreshTokenExpiresAt,
+						scope: token.scope,
+						apiDomain: token.api_domain,
+						updatedAt: now,
+					},
+				});
+		}
 	`;
 }
 
