@@ -81,6 +81,7 @@ describe('generateDatabase — src/database/index.ts', () => {
 		const content = await read('src/database/index.ts');
 		expect(content).toContain('mysql2');
 		expect(content).toContain('drizzle-orm/mysql2');
+		expect(content).toContain("mode: 'default'");
 	});
 
 	it('sqlite client uses @libsql/client', async () => {
@@ -218,6 +219,7 @@ describe('generateDatabase — docker-compose.yml', () => {
 		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(true);
 		const content = await read('docker-compose.yml');
 		expect(content).toContain('postgres:16');
+		expect(content).toContain('postgres_data:/var/lib/postgresql/data');
 		expect(content).toContain('pg_isready');
 		expect(content).toContain('healthcheck');
 	});
@@ -227,6 +229,9 @@ describe('generateDatabase — docker-compose.yml', () => {
 		await generateDatabase(tmpDir, mysqlOptions);
 		const content = await read('docker-compose.yml');
 		expect(content).toContain('mysql:8');
+		expect(content).toContain('127.0.0.1:3307:3306');
+		expect(content).not.toContain('3306:3306');
+		expect(content).toContain('mysql_data:/var/lib/mysql');
 		expect(content).toContain('mysqladmin');
 		expect(content).toContain('healthcheck');
 	});
