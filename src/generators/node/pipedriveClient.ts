@@ -9,6 +9,7 @@ export async function generatePipedriveClient(outputDir: string, _options: Gener
 		dedent`
 			import * as v2 from 'pipedrive/v2';
 			import * as v1 from 'pipedrive/v1';
+			import { getTokenByCompany, upsertToken } from '../database/tokenRepository.js';
 
 			const oauth2 = new v2.OAuth2Configuration({
 				clientId: process.env.PIPEDRIVE_CLIENT_ID ?? '',
@@ -16,20 +17,13 @@ export async function generatePipedriveClient(outputDir: string, _options: Gener
 				redirectUri: process.env.PIPEDRIVE_REDIRECT_URI ?? '',
 			});
 
-			// TODO: replace with database module call
-			async function getStoredToken(_companyId: number): Promise<v2.TokenResponse | null> {
-				throw new Error('getStoredToken not implemented — wire up database module');
-			}
-
-			// TODO: replace with database module call
-			async function saveToken(_companyId: number, _token: v2.TokenResponse): Promise<void> {
-				throw new Error('saveToken not implemented — wire up database module');
-			}
-
 			export async function getClient(companyId: number) {
-				const storedToken = await getStoredToken(companyId);
-				oauth2.updateToken(storedToken);
-				oauth2.onTokenUpdate = (token) => saveToken(companyId, token);
+				const stored = await getTokenByCompany(companyId);
+				oauth2.updateToken(stored?.token ?? null);
+				// For multi-user access, accept userId as a second parameter and use getToken(companyId, userId).
+				oauth2.onTokenUpdate = (token) => {
+					if (stored) upsertToken(stored.companyId, stored.userId, token);
+				};
 
 				const accessToken = oauth2.getAccessToken;
 				const basePath = oauth2.basePath;

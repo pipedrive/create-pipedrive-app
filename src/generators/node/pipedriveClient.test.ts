@@ -47,12 +47,21 @@ describe('generatePipedriveClient', () => {
 		expect(content).toContain('v1.NotesApi');
 	});
 
-	it('contains getStoredToken and saveToken placeholder functions', async () => {
+	it('imports getTokenByCompany and upsertToken from tokenRepository', async () => {
 		const { generatePipedriveClient } = await import('./pipedriveClient.js');
 		await generatePipedriveClient(tmpDir, options);
 		const content = await readFile(join(tmpDir, 'src/pipedrive/client.ts'), 'utf-8');
-		expect(content).toContain('getStoredToken');
-		expect(content).toContain('saveToken');
+		expect(content).toContain("from '../database/tokenRepository.js'");
+		expect(content).toContain('getTokenByCompany');
+		expect(content).toContain('upsertToken');
+	});
+
+	it('does not contain TODO stubs', async () => {
+		const { generatePipedriveClient } = await import('./pipedriveClient.js');
+		await generatePipedriveClient(tmpDir, options);
+		const content = await readFile(join(tmpDir, 'src/pipedrive/client.ts'), 'utf-8');
+		expect(content).not.toContain('TODO');
+		expect(content).not.toContain('throw new Error');
 	});
 
 	it('uses OAuth2Configuration with updateToken and onTokenUpdate', async () => {
