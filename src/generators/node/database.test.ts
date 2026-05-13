@@ -264,7 +264,7 @@ describe('generateDatabase — docker-compose.yml', () => {
 		expect(compose).toContain('dockerfile: Dockerfile.app');
 		expect(compose).toContain('user: root');
 		expect(compose).toContain(
-			'command: sh -c "chown -R node:node /app/node_modules && runuser -u node -- sh -c \'echo Installing dependencies... && npm install --no-package-lock --no-audit --no-fund --loglevel=error && ./node_modules/.bin/tsx watch src/index.ts\'"',
+			'command: sh -c "chown -R node:node /app/node_modules && su-exec node sh -c \'echo Installing dependencies... && npm install --no-package-lock --no-audit --no-fund --loglevel=error && ./node_modules/.bin/tsx watch src/index.ts\'"',
 		);
 		expect(compose).toContain("'3000:3000'");
 		expect(compose).toContain('./package.json:/app/package.json:ro');
@@ -277,7 +277,7 @@ describe('generateDatabase — docker-compose.yml', () => {
 		expect(compose).toContain('app-extension-ui:');
 		expect(compose).toContain('dockerfile: Dockerfile.app-extension-ui');
 		expect(compose).toContain(
-			'command: sh -c "chown -R node:node /app/node_modules && runuser -u node -- sh -c \'echo Installing dependencies... && npm install --no-package-lock --no-audit --no-fund --loglevel=error && npm run dev:frontend\'"',
+			'command: sh -c "chown -R node:node /app/node_modules && su-exec node sh -c \'echo Installing dependencies... && npm install --no-package-lock --no-audit --no-fund --loglevel=error && npm run dev:frontend\'"',
 		);
 		expect(compose).toContain("'5173:5173'");
 		expect(compose).toContain('./package.json:/app/package.json:ro');
@@ -294,7 +294,7 @@ describe('generateDatabase — docker-compose.yml', () => {
 		expect(compose).toContain('app_extension_ui_node_modules:');
 
 		const appDockerfile = await read('Dockerfile.app');
-		expect(appDockerfile).toContain('FROM node:20-bookworm-slim');
+		expect(appDockerfile).toContain('FROM node:24-alpine');
 		expect(appDockerfile).toContain('ENV NPM_CONFIG_USERCONFIG=/tmp/.npmrc');
 		expect(appDockerfile).toContain('RUN mkdir -p /app/node_modules && chown -R node:node /app');
 		expect(appDockerfile).toContain('npm config set registry https://registry.npmjs.org/');
@@ -304,7 +304,7 @@ describe('generateDatabase — docker-compose.yml', () => {
 		expect(appDockerfile).toContain('CMD ["npm", "run", "dev"]');
 
 		const dockerfile = await read('Dockerfile.app-extension-ui');
-		expect(dockerfile).toContain('FROM node:20-bookworm-slim');
+		expect(dockerfile).toContain('FROM node:24-alpine');
 		expect(dockerfile).toContain('ENV NPM_CONFIG_USERCONFIG=/tmp/.npmrc');
 		expect(dockerfile).toContain('RUN mkdir -p /app/node_modules && chown -R node:node /app');
 		expect(dockerfile).toContain('npm config set registry https://registry.npmjs.org/');

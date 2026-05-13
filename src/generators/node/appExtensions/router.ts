@@ -4,11 +4,11 @@ export function routerContent(): string {
 	return dedent`
 		import { existsSync } from 'node:fs';
 		import { join } from 'node:path';
-		import express, { Router, type RequestHandler } from 'express';
+		import { Router, type RequestHandler } from 'express';
 
 		const router = Router();
-		const uiDistPath = join(process.cwd(), 'frontend/app-extension-ui/dist');
-		const indexHtmlPath = join(uiDistPath, 'index.html');
+		const distPath = join(process.cwd(), 'frontend/app-extension-ui/dist');
+		const indexHtmlPath = join(distPath, 'index.html');
 
 		const requireFrontendBuild: RequestHandler = (_req, res, next) => {
 			if (!existsSync(indexHtmlPath)) {
@@ -19,7 +19,6 @@ export function routerContent(): string {
 			next();
 		};
 
-		router.use(requireFrontendBuild, express.static(uiDistPath));
 		router.get('*', requireFrontendBuild, (_req, res) => {
 			res.sendFile(indexHtmlPath);
 		});

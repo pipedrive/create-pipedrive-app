@@ -431,7 +431,7 @@ function indent(value: string, spaces: number): string {
 }
 
 function nodeVolumeCommand(command: string): string {
-	return `sh -c "chown -R node:node /app/node_modules && runuser -u node -- sh -c '${command}'"`;
+	return `sh -c "chown -R node:node /app/node_modules && su-exec node sh -c '${command}'"`;
 }
 
 function quietInstallCommand(): string {
@@ -442,8 +442,9 @@ async function generateAppExtensionUiDockerfile(outputDir: string): Promise<void
 	await writeFile(
 		join(outputDir, 'Dockerfile.app-extension-ui'),
 		dedent`
-			FROM node:20-bookworm-slim
+			FROM node:24-alpine
 
+			RUN apk add --no-cache su-exec
 			WORKDIR /app
 			ENV NPM_CONFIG_USERCONFIG=/tmp/.npmrc
 			RUN mkdir -p /app/node_modules && chown -R node:node /app
@@ -463,8 +464,9 @@ async function generateAppDockerfile(outputDir: string): Promise<void> {
 	await writeFile(
 		join(outputDir, 'Dockerfile.app'),
 		dedent`
-			FROM node:20-bookworm-slim
+			FROM node:24-alpine
 
+			RUN apk add --no-cache su-exec
 			WORKDIR /app
 			ENV NPM_CONFIG_USERCONFIG=/tmp/.npmrc
 			RUN mkdir -p /app/node_modules && chown -R node:node /app
