@@ -63,7 +63,6 @@ async function generateOauthRouter(outputDir: string): Promise<void> {
 				clientId: process.env.PIPEDRIVE_CLIENT_ID ?? '',
 				clientSecret: process.env.PIPEDRIVE_CLIENT_SECRET ?? '',
 				redirectUri: process.env.PIPEDRIVE_REDIRECT_URI ?? '',
-				...(process.env.PIPEDRIVE_OAUTH_HOST && { host: process.env.PIPEDRIVE_OAUTH_HOST }),
 			});
 
 			const router = Router();
