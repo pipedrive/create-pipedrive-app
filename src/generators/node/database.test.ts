@@ -72,6 +72,9 @@ describe('generateDatabase — src/database/index.ts', () => {
 		const content = await read('src/database/index.ts');
 		expect(content).toContain('postgres');
 		expect(content).toContain('drizzle-orm/postgres-js');
+		expect(content).toContain('onnotice');
+		expect(content).toContain("'42P06'");
+		expect(content).toContain("'42P07'");
 		expect(content).toContain('export');
 	});
 
@@ -81,14 +84,15 @@ describe('generateDatabase — src/database/index.ts', () => {
 		const content = await read('src/database/index.ts');
 		expect(content).toContain('mysql2');
 		expect(content).toContain('drizzle-orm/mysql2');
+		expect(content).toContain("mode: 'default'");
 	});
 
-	it('sqlite client uses better-sqlite3', async () => {
+	it('sqlite client uses @libsql/client', async () => {
 		const { generateDatabase } = await import('./database.js');
 		await generateDatabase(tmpDir, sqliteOptions);
 		const content = await read('src/database/index.ts');
-		expect(content).toContain('better-sqlite3');
-		expect(content).toContain('drizzle-orm/better-sqlite3');
+		expect(content).toContain('@libsql/client');
+		expect(content).toContain('drizzle-orm/libsql');
 	});
 });
 
@@ -116,11 +120,11 @@ describe('generateDatabase — migrate.ts', () => {
 		expect(content).toContain('mysql2/migrator');
 	});
 
-	it('sqlite migrate imports from drizzle-orm/better-sqlite3/migrator', async () => {
+	it('sqlite migrate imports from drizzle-orm/libsql/migrator', async () => {
 		const { generateDatabase } = await import('./database.js');
 		await generateDatabase(tmpDir, sqliteOptions);
 		const content = await read('src/database/migrate.ts');
-		expect(content).toContain('better-sqlite3/migrator');
+		expect(content).toContain('libsql/migrator');
 	});
 });
 
@@ -150,6 +154,32 @@ describe('generateDatabase — 0000_init.sql', () => {
 		const content = await read('src/database/migrations/0000_init.sql');
 		expect(content).toContain('INTEGER');
 		expect(content).toContain('TEXT');
+	});
+});
+
+describe('generateDatabase — meta/_journal.json', () => {
+	it('generates journal with 0000_init entry', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		expect(await exists(join(tmpDir, 'src/database/migrations/meta/_journal.json'))).toBe(true);
+		const content = await read('src/database/migrations/meta/_journal.json');
+		const journal = JSON.parse(content);
+		expect(journal.entries[0].tag).toBe('0000_init');
+		expect(journal.entries[0].breakpoints).toBe(true);
+	});
+
+	it('postgres journal uses postgresql dialect', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const journal = JSON.parse(await read('src/database/migrations/meta/_journal.json'));
+		expect(journal.dialect).toBe('postgresql');
+	});
+
+	it('sqlite journal uses sqlite dialect', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, sqliteOptions);
+		const journal = JSON.parse(await read('src/database/migrations/meta/_journal.json'));
+		expect(journal.dialect).toBe('sqlite');
 	});
 });
 
@@ -192,6 +222,7 @@ describe('generateDatabase — docker-compose.yml', () => {
 		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(true);
 		const content = await read('docker-compose.yml');
 		expect(content).toContain('postgres:16');
+		expect(content).toContain('postgres_data:/var/lib/postgresql/data');
 		expect(content).toContain('pg_isready');
 		expect(content).toContain('healthcheck');
 	});
@@ -201,6 +232,9 @@ describe('generateDatabase — docker-compose.yml', () => {
 		await generateDatabase(tmpDir, mysqlOptions);
 		const content = await read('docker-compose.yml');
 		expect(content).toContain('mysql:8');
+		expect(content).toContain('127.0.0.1:3307:3306');
+		expect(content).not.toContain('3306:3306');
+		expect(content).toContain('mysql_data:/var/lib/mysql');
 		expect(content).toContain('mysqladmin');
 		expect(content).toContain('healthcheck');
 	});

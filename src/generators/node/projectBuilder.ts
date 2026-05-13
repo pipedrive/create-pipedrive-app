@@ -59,8 +59,27 @@ class ServerEntryStep implements BuildStep {
 				import app from './app.js';
 
 				const PORT = ${envVarAccess('PORT', '3000')};
+				const STARTUP_RETRY_ATTEMPTS = 60;
+				const STARTUP_RETRY_DELAY_MS = 1000;
 
-				await runMigrations();
+				async function waitForDatabase(): Promise<void> {
+					for (let attempt = 1; attempt <= STARTUP_RETRY_ATTEMPTS; attempt++) {
+						try {
+							await runMigrations();
+							return;
+						} catch (error) {
+							if (attempt === STARTUP_RETRY_ATTEMPTS) throw error;
+
+							const message = error instanceof Error ? error.message : String(error);
+							console.warn(
+								\`Database is not ready yet (\${attempt}/\${STARTUP_RETRY_ATTEMPTS}): \${message}\`,
+							);
+							await new Promise<void>((resolve) => setTimeout(resolve, STARTUP_RETRY_DELAY_MS));
+						}
+					}
+				}
+
+				await waitForDatabase();
 				app.listen(PORT, () => {
 					console.log(\`Server running on port \${PORT}\`);
 				});
@@ -74,13 +93,13 @@ class PackageJsonStep implements BuildStep {
 		const dbDrivers: Record<GeneratorOptions['database'], Record<string, string>> = {
 			postgres: { postgres: '^3.4.0' },
 			mysql: { mysql2: '^3.9.0' },
-			sqlite: { 'better-sqlite3': '^9.4.0' },
+			sqlite: { '@libsql/client': '^0.14.0' },
 		};
 
 		const dbDevDrivers: Record<GeneratorOptions['database'], Record<string, string>> = {
 			postgres: {},
 			mysql: {},
-			sqlite: { '@types/better-sqlite3': '^7.6.0' },
+			sqlite: {},
 		};
 
 		const pkg = {
@@ -88,7 +107,7 @@ class PackageJsonStep implements BuildStep {
 			version: '0.1.0',
 			type: 'module',
 			scripts: {
-				'dev': 'tsx src/index.ts',
+				'dev': 'tsx watch --env-file=.env src/index.ts',
 				'build': 'tsc',
 				'typecheck': 'tsc --noEmit',
 				'db:migrate': 'drizzle-kit migrate',
@@ -132,7 +151,12 @@ class TsConfigStep implements BuildStep {
 }
 
 class EnvExampleStep implements BuildStep {
-	async execute(outputDir: string, _options: GeneratorOptions): Promise<void> {
+	async execute(outputDir: string, options: GeneratorOptions): Promise<void> {
+		const databaseUrlExample: Record<GeneratorOptions['database'], string> = {
+			postgres: `postgresql://app:app@localhost:5432/${options.projectName}`,
+			mysql: `mysql://app:app@localhost:3307/${options.projectName}`,
+			sqlite: 'file:./data.db',
+		};
 		await writeFile(
 			join(outputDir, '.env.example'),
 			dedent`
@@ -140,7 +164,7 @@ class EnvExampleStep implements BuildStep {
 				PIPEDRIVE_CLIENT_SECRET=
 				PIPEDRIVE_REDIRECT_URI=http://localhost:3000/oauth/callback
 				# PIPEDRIVE_OAUTH_HOST=https://oauth.pipedrive.com
-				DATABASE_URL=
+				DATABASE_URL=${databaseUrlExample[options.database]}
 				PORT=3000
 			`,
 		);
