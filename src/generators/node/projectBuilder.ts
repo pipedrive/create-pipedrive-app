@@ -139,6 +139,7 @@ class EnvExampleStep implements BuildStep {
 				PIPEDRIVE_CLIENT_ID=
 				PIPEDRIVE_CLIENT_SECRET=
 				PIPEDRIVE_REDIRECT_URI=http://localhost:3000/oauth/callback
+				# PIPEDRIVE_OAUTH_HOST=https://oauth.pipedrive.com
 				DATABASE_URL=
 				PORT=3000
 			`,
