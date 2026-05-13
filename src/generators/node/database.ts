@@ -420,8 +420,10 @@ async function generateMigrationJournal(outputDir: string, options: GeneratorOpt
 async function generateDockerCompose(outputDir: string, options: GeneratorOptions): Promise<void> {
 	const { database, projectName } = options;
 
+	let content: string;
+
 	if (database === 'sqlite') {
-		const content = dedent`
+		content = dedent`
 			services:
 			  backend:
 			    build: .
@@ -444,79 +446,91 @@ async function generateDockerCompose(outputDir: string, options: GeneratorOption
 			volumes:
 			  sqlite_data:
 		`;
-		await writeFile(join(outputDir, 'docker-compose.yml'), content);
-		return;
+	} else if (database === 'postgres') {
+		content = dedent`
+			services:
+			  backend:
+			    build: .
+			    command: node_modules/.bin/tsx watch src/index.ts
+			    ports:
+			      - '\${PORT:-3000}:3000'
+			    env_file: .env
+			    environment:
+			      DATABASE_URL: postgresql://app:app@db:5432/${projectName}
+			    depends_on:
+			      db:
+			        condition: service_healthy
+			    develop:
+			      watch:
+			        - action: sync
+			          path: ./src
+			          target: /app/src
+			        - action: rebuild
+			          path: package.json
+
+			  db:
+			    image: postgres:16
+			    environment:
+			      POSTGRES_USER: app
+			      POSTGRES_PASSWORD: app
+			      POSTGRES_DB: ${projectName}
+			    ports:
+			      - '5432:5432'
+			    volumes:
+			      - db_data:/var/lib/postgresql/data
+			    healthcheck:
+			      test: ['CMD', 'pg_isready', '-U', 'app']
+			      interval: 5s
+			      timeout: 5s
+			      retries: 5
+
+			volumes:
+			  db_data:
+		`;
+	} else {
+		content = dedent`
+			services:
+			  backend:
+			    build: .
+			    command: node_modules/.bin/tsx watch src/index.ts
+			    ports:
+			      - '\${PORT:-3000}:3000'
+			    env_file: .env
+			    environment:
+			      DATABASE_URL: mysql://app:app@db:3306/${projectName}
+			    depends_on:
+			      db:
+			        condition: service_healthy
+			    develop:
+			      watch:
+			        - action: sync
+			          path: ./src
+			          target: /app/src
+			        - action: rebuild
+			          path: package.json
+
+			  db:
+			    image: mysql:8
+			    environment:
+			      MYSQL_ROOT_PASSWORD: app
+			      MYSQL_DATABASE: ${projectName}
+			      MYSQL_USER: app
+			      MYSQL_PASSWORD: app
+			    ports:
+			      - '127.0.0.1:3307:3306'
+			    volumes:
+			      - db_data:/var/lib/mysql
+			    healthcheck:
+			      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'app', '--password=app']
+			      interval: 5s
+			      timeout: 5s
+			      retries: 5
+
+			volumes:
+			  db_data:
+		`;
 	}
 
-	const dbUrl =
-		database === 'postgres'
-			? `postgresql://app:app@db:5432/${projectName}`
-			: `mysql://app:app@db:3306/${projectName}`;
-
-	const dbService =
-		database === 'postgres'
-			? dedent`
-				db:
-				    image: postgres:16
-				    environment:
-				      POSTGRES_USER: app
-				      POSTGRES_PASSWORD: app
-				      POSTGRES_DB: ${projectName}
-				    ports:
-				      - '5432:5432'
-				    volumes:
-				      - db_data:/var/lib/postgresql/data
-				    healthcheck:
-				      test: ['CMD', 'pg_isready', '-U', 'app']
-				      interval: 5s
-				      timeout: 5s
-				      retries: 5
-			`
-			: dedent`
-				db:
-				    image: mysql:8
-				    environment:
-				      MYSQL_ROOT_PASSWORD: app
-				      MYSQL_DATABASE: ${projectName}
-				      MYSQL_USER: app
-				      MYSQL_PASSWORD: app
-				    ports:
-				      - '127.0.0.1:3307:3306'
-				    volumes:
-				      - db_data:/var/lib/mysql
-				    healthcheck:
-				      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'app', '--password=app']
-				      interval: 5s
-				      timeout: 5s
-				      retries: 5
-			`;
-
-	const content = dedent`
-		services:
-		  backend:
-		    build: .
-		    command: node_modules/.bin/tsx watch src/index.ts
-		    ports:
-		      - '\${PORT:-3000}:3000'
-		    env_file: .env
-		    environment:
-		      DATABASE_URL: ${dbUrl}
-		    depends_on:
-		      db:
-		        condition: service_healthy
-		    develop:
-		      watch:
-		        - action: sync
-		          path: ./src
-		          target: /app/src
-		        - action: rebuild
-		          path: package.json
-
-		  ${dbService}
-
-		volumes:
-		  db_data:
-	`;
 	await writeFile(join(outputDir, 'docker-compose.yml'), content);
 }
 
@@ -527,7 +541,7 @@ async function generateDockerfile(outputDir: string): Promise<void> {
 			FROM node:22-alpine
 			WORKDIR /app
 			COPY package*.json ./
-			RUN npm ci
+			RUN npm install
 			COPY . .
 		`,
 	);
