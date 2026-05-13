@@ -60,7 +60,7 @@ describe('nodeGenerator', () => {
 
 		expect(await exists(join(tmpDir, 'src/webhooks/index.ts'))).toBe(false);
 		expect(await exists(join(tmpDir, 'src/app-extensions'))).toBe(false);
-		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(false);
+		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(true);
 	});
 
 	it('generated project passes tsc --noEmit', async () => {

@@ -216,33 +216,44 @@ describe('generateDatabase — drizzle.config.ts', () => {
 });
 
 describe('generateDatabase — docker-compose.yml', () => {
-	it('generates docker-compose.yml for postgres with healthcheck', async () => {
+	it('generates docker-compose.yml for postgres with backend and healthcheck', async () => {
 		const { generateDatabase } = await import('./database.js');
 		await generateDatabase(tmpDir, pgOptions);
 		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(true);
 		const content = await read('docker-compose.yml');
 		expect(content).toContain('postgres:16');
-		expect(content).toContain('postgres_data:/var/lib/postgresql/data');
+		expect(content).toContain('db_data:/var/lib/postgresql/data');
 		expect(content).toContain('pg_isready');
 		expect(content).toContain('healthcheck');
+		expect(content).toContain('backend');
+		expect(content).toContain('tsx watch src/index.ts');
+		expect(content).toContain('action: sync');
 	});
 
-	it('generates docker-compose.yml for mysql with healthcheck', async () => {
+	it('generates docker-compose.yml for mysql with backend and healthcheck', async () => {
 		const { generateDatabase } = await import('./database.js');
 		await generateDatabase(tmpDir, mysqlOptions);
 		const content = await read('docker-compose.yml');
 		expect(content).toContain('mysql:8');
 		expect(content).toContain('127.0.0.1:3307:3306');
 		expect(content).not.toContain('3306:3306');
-		expect(content).toContain('mysql_data:/var/lib/mysql');
+		expect(content).toContain('db_data:/var/lib/mysql');
 		expect(content).toContain('mysqladmin');
 		expect(content).toContain('healthcheck');
+		expect(content).toContain('backend');
+		expect(content).toContain('tsx watch src/index.ts');
 	});
 
-	it('does not generate docker-compose.yml for sqlite', async () => {
+	it('generates docker-compose.yml for sqlite with backend only', async () => {
 		const { generateDatabase } = await import('./database.js');
 		await generateDatabase(tmpDir, sqliteOptions);
-		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(false);
+		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(true);
+		const content = await read('docker-compose.yml');
+		expect(content).toContain('backend');
+		expect(content).toContain('tsx watch src/index.ts');
+		expect(content).toContain('sqlite_data');
+		expect(content).not.toContain('mysql');
+		expect(content).not.toContain('postgres');
 	});
 });
 

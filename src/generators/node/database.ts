@@ -11,9 +11,9 @@ export async function generateDatabase(outputDir: string, options: GeneratorOpti
 	await generateMigrationJournal(outputDir, options);
 	await generateDrizzleConfig(outputDir, options);
 	await generateTokenRepository(outputDir, options);
-	if (options.database === 'postgres' || options.database === 'mysql') {
-		await generateDockerCompose(outputDir, options);
-	}
+	await generateDockerCompose(outputDir, options);
+	await generateDockerfile(outputDir);
+	await generateDockerignore(outputDir);
 }
 
 async function generateSchema(outputDir: string, options: GeneratorOptions): Promise<void> {
@@ -418,52 +418,130 @@ async function generateMigrationJournal(outputDir: string, options: GeneratorOpt
 }
 
 async function generateDockerCompose(outputDir: string, options: GeneratorOptions): Promise<void> {
-	const content =
-		options.database === 'postgres'
+	const { database, projectName } = options;
+
+	if (database === 'sqlite') {
+		const content = dedent`
+			services:
+			  backend:
+			    build: .
+			    command: node_modules/.bin/tsx watch src/index.ts
+			    ports:
+			      - '\${PORT:-3000}:3000'
+			    env_file: .env
+			    environment:
+			      DATABASE_URL: file:/app/data/data.db
+			    volumes:
+			      - sqlite_data:/app/data
+			    develop:
+			      watch:
+			        - action: sync
+			          path: ./src
+			          target: /app/src
+			        - action: rebuild
+			          path: package.json
+
+			volumes:
+			  sqlite_data:
+		`;
+		await writeFile(join(outputDir, 'docker-compose.yml'), content);
+		return;
+	}
+
+	const dbUrl =
+		database === 'postgres'
+			? `postgresql://app:app@db:5432/${projectName}`
+			: `mysql://app:app@db:3306/${projectName}`;
+
+	const dbService =
+		database === 'postgres'
 			? dedent`
-				services:
-				  db:
+				db:
 				    image: postgres:16
 				    environment:
 				      POSTGRES_USER: app
 				      POSTGRES_PASSWORD: app
-				      POSTGRES_DB: ${options.projectName}
+				      POSTGRES_DB: ${projectName}
 				    ports:
 				      - '5432:5432'
 				    volumes:
-				      - postgres_data:/var/lib/postgresql/data
+				      - db_data:/var/lib/postgresql/data
 				    healthcheck:
 				      test: ['CMD', 'pg_isready', '-U', 'app']
 				      interval: 5s
 				      timeout: 5s
 				      retries: 5
-
-				volumes:
-				  postgres_data:
 			`
 			: dedent`
-				services:
-				  db:
+				db:
 				    image: mysql:8
 				    environment:
 				      MYSQL_ROOT_PASSWORD: app
-				      MYSQL_DATABASE: ${options.projectName}
+				      MYSQL_DATABASE: ${projectName}
 				      MYSQL_USER: app
 				      MYSQL_PASSWORD: app
 				    ports:
 				      - '127.0.0.1:3307:3306'
 				    volumes:
-				      - mysql_data:/var/lib/mysql
+				      - db_data:/var/lib/mysql
 				    healthcheck:
 				      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'app', '--password=app']
 				      interval: 5s
 				      timeout: 5s
 				      retries: 5
-
-				volumes:
-				  mysql_data:
 			`;
+
+	const content = dedent`
+		services:
+		  backend:
+		    build: .
+		    command: node_modules/.bin/tsx watch src/index.ts
+		    ports:
+		      - '\${PORT:-3000}:3000'
+		    env_file: .env
+		    environment:
+		      DATABASE_URL: ${dbUrl}
+		    depends_on:
+		      db:
+		        condition: service_healthy
+		    develop:
+		      watch:
+		        - action: sync
+		          path: ./src
+		          target: /app/src
+		        - action: rebuild
+		          path: package.json
+
+		  ${dbService}
+
+		volumes:
+		  db_data:
+	`;
 	await writeFile(join(outputDir, 'docker-compose.yml'), content);
+}
+
+async function generateDockerfile(outputDir: string): Promise<void> {
+	await writeFile(
+		join(outputDir, 'Dockerfile'),
+		dedent`
+			FROM node:22-alpine
+			WORKDIR /app
+			COPY package*.json ./
+			RUN npm ci
+			COPY . .
+		`,
+	);
+}
+
+async function generateDockerignore(outputDir: string): Promise<void> {
+	await writeFile(
+		join(outputDir, '.dockerignore'),
+		dedent`
+			node_modules
+			dist
+			.env
+		`,
+	);
 }
 
 async function generateDrizzleConfig(outputDir: string, options: GeneratorOptions): Promise<void> {
