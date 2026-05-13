@@ -40,13 +40,12 @@ async function main(): Promise<void> {
 		spinner.stop(ok ? 'Dependencies installed' : 'npm install failed — run it manually');
 	}
 
-	const needsDocker = database === 'postgres' || database === 'mysql';
 	console.log('\nNext steps:');
 	console.log(`  cd ${nameOrPath}`);
 	console.log('  cp .env.example .env');
-	if (needsDocker) console.log('  docker-compose up -d');
+	console.log('  # fill in PIPEDRIVE_CLIENT_ID and PIPEDRIVE_CLIENT_SECRET');
 	if (!installDeps) console.log('  npm install');
-	console.log('  npm run dev');
+	console.log('  docker compose up');
 }
 
 main();
