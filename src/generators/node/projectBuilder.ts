@@ -81,7 +81,7 @@ class ServerEntryStep implements BuildStep {
 
 				await waitForDatabase();
 				app.listen(PORT, () => {
-					console.log(\`Server running on port \${PORT}\`);
+					console.log(\`Server running at http://localhost:\${PORT}\`);
 				});
 			`,
 		);
@@ -133,6 +133,7 @@ class PackageJsonStep implements BuildStep {
 							'@pipedrive/app-extensions-sdk': '^0.13.1',
 							'react': '^18.2.0',
 							'react-dom': '^18.2.0',
+							'react-router-dom': '^6.22.0',
 						}
 					: {}),
 				...dbDrivers[options.database],
