@@ -70,11 +70,12 @@ describe('generateOauth — src/oauth/state.ts', () => {
 });
 
 describe('generateOauth — src/oauth/index.ts routes', () => {
-	it('has /redirect route', async () => {
+	it('exports createAuthRedirect', async () => {
 		const { generateOauth } = await import('./oauth.js');
 		await generateOauth(tmpDir, options);
 		const content = await readFile(join(tmpDir, 'src/oauth/index.ts'), 'utf-8');
-		expect(content).toContain("'/redirect'");
+		expect(content).toContain('export function createAuthRedirect');
+		expect(content).toContain('oauth2.authorizationUrl');
 	});
 
 	it('has /callback route', async () => {

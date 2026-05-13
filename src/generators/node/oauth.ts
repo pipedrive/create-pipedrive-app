@@ -65,14 +65,14 @@ async function generateOauthRouter(outputDir: string): Promise<void> {
 				redirectUri: process.env.PIPEDRIVE_REDIRECT_URI ?? '',
 			});
 
+			export function createAuthRedirect(): string {
+				const state = createState();
+				return \`\${oauth2.authorizationUrl}&state=\${encodeURIComponent(state)}\`;
+			}
+
 			const router = Router();
 
-			router.get('/redirect', (_req, res) => {
-				const state = createState();
-				res.redirect(\`\${oauth2.authorizationUrl}&state=\${encodeURIComponent(state)}\`);
-			});
-
-			router.get('/callback', async (req, res) => {
+			router.get('/callback', async (req, res, next) => {
 				const { code, state } = req.query as { code?: string; state?: string };
 
 				if (!state || !verifyState(state)) {
@@ -90,7 +90,8 @@ async function generateOauthRouter(outputDir: string): Promise<void> {
 
 					if (!token.api_domain) throw new Error('Missing api_domain in token response');
 
-					const response = await fetch(\`https://\${token.api_domain}/v1/users/me\`, {
+					const apiDomain = token.api_domain.replace('https://', '').replace('http://', '');
+					const response = await fetch(\`https://\${apiDomain}/v1/users/me\`, {
 						headers: { Authorization: \`Bearer \${token.access_token}\` },
 					});
 
@@ -101,8 +102,7 @@ async function generateOauthRouter(outputDir: string): Promise<void> {
 					await upsertToken(data.company_id, data.id, token);
 					res.redirect('/');
 				} catch (err) {
-					const message = err instanceof Error ? err.message : 'OAuth error';
-					res.status(500).send(message);
+					next(err);
 				}
 			});
 

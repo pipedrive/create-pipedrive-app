@@ -1,3 +1,4 @@
+import dedent from 'dedent';
 import { join } from 'path';
 import { writeFile } from '../../utils/writeFile.js';
 import type { GeneratorOptions } from '../interface.js';
@@ -15,14 +16,46 @@ export async function generateApp(outputDir: string, options: GeneratorOptions):
 		.addIf(hasModal, '/extensions/modal', 'modalRouter')
 		.build();
 
+	const rootRoute = dedent`
+		app.get('/', async (_req, res, next) => {
+			try {
+				const rows = await db.select().from(pipedriveTokens).orderBy(desc(pipedriveTokens.updatedAt)).limit(1);
+				if (!rows[0]) {
+					res.redirect(createAuthRedirect());
+					return;
+				}
+				const client = await getClient(rows[0].pipedriveCompanyId);
+				const deals = await client.deals.getDeals();
+				res.json(deals);
+			} catch (err) {
+				next(err);
+			}
+		});
+	`;
+
+	const errorHandler = dedent`
+		app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+			console.error(err);
+			res.status(500).send(err.message);
+		});
+	`;
+
 	const content = new SourceFileBuilder()
 		.importDefault('express', 'express')
+		.import('express', ['NextFunction', 'Request', 'Response'])
 		.importDefault('./oauth/index.js', 'oauthRouter')
+		.import('./oauth/index.js', ['createAuthRedirect'])
+		.import('./pipedrive/client.js', ['getClient'])
+		.import('./database/index.js', ['db'])
+		.import('./database/schema.js', ['pipedriveTokens'])
+		.import('drizzle-orm', ['desc'])
 		.importDefaultIf(options.webhooks, './webhooks/index.js', 'webhooksRouter')
 		.importDefaultIf(hasPanel, './app-extensions/panel/index.js', 'panelRouter')
 		.importDefaultIf(hasModal, './app-extensions/modal/index.js', 'modalRouter')
 		.addBlock('const app = express();')
+		.addBlock(rootRoute)
 		.addBlock(mounts)
+		.addBlock(errorHandler)
 		.exportDefault('app')
 		.build();
 

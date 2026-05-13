@@ -26,7 +26,31 @@ describe('generateApp', () => {
 		});
 		expect(content).toContain("from 'express'");
 		expect(content).toContain("from './oauth/index.js'");
+		expect(content).toContain('createAuthRedirect');
 		expect(content).toContain("app.use('/oauth'");
+	});
+
+	it('has root route that redirects to oauth when not installed', async () => {
+		const content = await getAppContent({
+			projectName: 'test-app',
+			database: 'postgres',
+			webhooks: false,
+			appExtensions: [],
+		});
+		expect(content).toContain("app.get('/'");
+		expect(content).toContain('createAuthRedirect()');
+		expect(content).toContain('client.deals.getDeals()');
+	});
+
+	it('has global error handler', async () => {
+		const content = await getAppContent({
+			projectName: 'test-app',
+			database: 'postgres',
+			webhooks: false,
+			appExtensions: [],
+		});
+		expect(content).toContain('NextFunction');
+		expect(content).toContain('res.status(500)');
 	});
 
 	it('includes webhooks import and mount when webhooks is true', async () => {
