@@ -19,21 +19,18 @@ afterEach(async () => {
 const pgOptions: GeneratorOptions = {
 	projectName: 'test-app',
 	database: 'postgres',
-	webhooks: false,
 	appExtensions: [],
 };
 
 const mysqlOptions: GeneratorOptions = {
 	projectName: 'test-app',
 	database: 'mysql',
-	webhooks: false,
 	appExtensions: [],
 };
 
 const sqliteOptions: GeneratorOptions = {
 	projectName: 'test-app',
 	database: 'sqlite',
-	webhooks: false,
 	appExtensions: [],
 };
 

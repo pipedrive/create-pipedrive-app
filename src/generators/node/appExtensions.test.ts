@@ -21,7 +21,6 @@ describe('generateAppExtensions', () => {
 		const options: GeneratorOptions = {
 			projectName: 'test-app',
 			database: 'postgres',
-			webhooks: false,
 			appExtensions: ['custom-panel'],
 		};
 		await generateAppExtensions(tmpDir, options);
@@ -34,7 +33,6 @@ describe('generateAppExtensions', () => {
 		const options: GeneratorOptions = {
 			projectName: 'test-app',
 			database: 'postgres',
-			webhooks: false,
 			appExtensions: ['custom-modal'],
 		};
 		await generateAppExtensions(tmpDir, options);
@@ -47,7 +45,6 @@ describe('generateAppExtensions', () => {
 		const options: GeneratorOptions = {
 			projectName: 'test-app',
 			database: 'postgres',
-			webhooks: false,
 			appExtensions: ['custom-panel', 'custom-modal'],
 		};
 		await generateAppExtensions(tmpDir, options);

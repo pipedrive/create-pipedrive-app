@@ -8,7 +8,6 @@ const tmpDir = join(tmpdir(), 'cpa-oauth-test');
 const options: GeneratorOptions = {
 	projectName: 'test-app',
 	database: 'postgres',
-	webhooks: false,
 	appExtensions: [],
 };
 

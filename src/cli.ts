@@ -4,7 +4,6 @@ import { basename, resolve } from 'node:path';
 import { promptAppExtensions } from './prompts/appExtensions.js';
 import { promptDatabase } from './prompts/database.js';
 import { promptProjectName } from './prompts/projectName.js';
-import { promptWebhooks } from './prompts/webhooks.js';
 import { nodeGenerator } from './generators/node/index.js';
 
 async function main(): Promise<void> {
@@ -13,13 +12,12 @@ async function main(): Promise<void> {
 	const nameOrPath = await promptProjectName(process.argv[2]);
 	const database = await promptDatabase();
 	const appExtensions = await promptAppExtensions();
-	const webhooks = await promptWebhooks();
 
 	const outputDir = resolve(process.cwd(), nameOrPath);
 	const projectName = basename(outputDir);
 
 	try {
-		await nodeGenerator.generate(outputDir, { projectName, database, appExtensions, webhooks });
+		await nodeGenerator.generate(outputDir, { projectName, database, appExtensions });
 	} catch (error) {
 		clack.log.error(`Generation failed: ${error instanceof Error ? error.message : String(error)}`);
 		process.exit(1);

@@ -7,7 +7,6 @@ import { generateAppExtensions } from './appExtensions.js';
 import { generateDatabase } from './database.js';
 import { generateOauth } from './oauth.js';
 import { generatePipedriveClient } from './pipedriveClient.js';
-import { generateWebhooks } from './webhooks.js';
 import { envVarAccess } from '../../utils/templates.js';
 
 export interface BuildStep {
@@ -29,12 +28,6 @@ class DatabaseStep implements BuildStep {
 class AppStep implements BuildStep {
 	async execute(outputDir: string, options: GeneratorOptions): Promise<void> {
 		await generateApp(outputDir, options);
-	}
-}
-
-class WebhooksStep implements BuildStep {
-	async execute(outputDir: string, options: GeneratorOptions): Promise<void> {
-		await generateWebhooks(outputDir, options);
 	}
 }
 
@@ -192,9 +185,6 @@ export class NodeProjectBuilder {
 	}
 	addApp(): this {
 		return this.addStep(new AppStep());
-	}
-	addWebhooks(): this {
-		return this.addStep(new WebhooksStep());
 	}
 	addAppExtensions(): this {
 		return this.addStep(new AppExtensionsStep());

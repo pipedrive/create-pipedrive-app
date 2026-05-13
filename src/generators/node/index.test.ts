@@ -20,14 +20,12 @@ afterEach(async () => {
 const fullOptions: GeneratorOptions = {
 	projectName: 'test-app',
 	database: 'postgres',
-	webhooks: true,
 	appExtensions: ['custom-panel', 'custom-modal'],
 };
 
 const minimalOptions: GeneratorOptions = {
 	projectName: 'test-app',
 	database: 'sqlite',
-	webhooks: false,
 	appExtensions: [],
 };
 
@@ -40,7 +38,6 @@ describe('nodeGenerator', () => {
 			'src/app.ts',
 			'src/oauth/index.ts',
 			'src/database/index.ts',
-			'src/webhooks/index.ts',
 			'src/app-extensions/panel/index.ts',
 			'src/app-extensions/modal/index.ts',
 			'src/pipedrive/client.ts',
@@ -58,7 +55,6 @@ describe('nodeGenerator', () => {
 	it('omits conditional files for minimal options', async () => {
 		await nodeGenerator.generate(tmpDir, minimalOptions);
 
-		expect(await exists(join(tmpDir, 'src/webhooks/index.ts'))).toBe(false);
 		expect(await exists(join(tmpDir, 'src/app-extensions'))).toBe(false);
 		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(true);
 	});

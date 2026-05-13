@@ -21,7 +21,6 @@ describe('generateApp', () => {
 		const content = await getAppContent({
 			projectName: 'test-app',
 			database: 'postgres',
-			webhooks: false,
 			appExtensions: [],
 		});
 		expect(content).toContain("from 'express'");
@@ -34,7 +33,6 @@ describe('generateApp', () => {
 		const content = await getAppContent({
 			projectName: 'test-app',
 			database: 'postgres',
-			webhooks: false,
 			appExtensions: [],
 		});
 		expect(content).toContain("app.get('/'");
@@ -46,39 +44,16 @@ describe('generateApp', () => {
 		const content = await getAppContent({
 			projectName: 'test-app',
 			database: 'postgres',
-			webhooks: false,
 			appExtensions: [],
 		});
 		expect(content).toContain('NextFunction');
 		expect(content).toContain('res.status(500)');
 	});
 
-	it('includes webhooks import and mount when webhooks is true', async () => {
-		const content = await getAppContent({
-			projectName: 'test-app',
-			database: 'postgres',
-			webhooks: true,
-			appExtensions: [],
-		});
-		expect(content).toContain("from './webhooks/index.js'");
-		expect(content).toContain("app.use('/webhooks'");
-	});
-
-	it('excludes webhooks when webhooks is false', async () => {
-		const content = await getAppContent({
-			projectName: 'test-app',
-			database: 'postgres',
-			webhooks: false,
-			appExtensions: [],
-		});
-		expect(content).not.toContain('./webhooks/index.js');
-	});
-
 	it('includes panel import and mount when custom-panel is selected', async () => {
 		const content = await getAppContent({
 			projectName: 'test-app',
 			database: 'postgres',
-			webhooks: false,
 			appExtensions: ['custom-panel'],
 		});
 		expect(content).toContain("from './app-extensions/panel/index.js'");
@@ -89,7 +64,6 @@ describe('generateApp', () => {
 		const content = await getAppContent({
 			projectName: 'test-app',
 			database: 'postgres',
-			webhooks: false,
 			appExtensions: ['custom-modal'],
 		});
 		expect(content).toContain("from './app-extensions/modal/index.js'");
@@ -100,7 +74,6 @@ describe('generateApp', () => {
 		const content = await getAppContent({
 			projectName: 'test-app',
 			database: 'sqlite',
-			webhooks: false,
 			appExtensions: [],
 		});
 		expect(content).not.toContain('./app-extensions');

@@ -11,7 +11,6 @@ export async function generateApp(outputDir: string, options: GeneratorOptions):
 
 	const mounts = new RouterMountBuilder()
 		.add('/oauth', 'oauthRouter')
-		.addIf(options.webhooks, '/webhooks', 'webhooksRouter')
 		.addIf(hasPanel, '/extensions/panel', 'panelRouter')
 		.addIf(hasModal, '/extensions/modal', 'modalRouter')
 		.build();
@@ -49,7 +48,6 @@ export async function generateApp(outputDir: string, options: GeneratorOptions):
 		.import('./database/index.js', ['db'])
 		.import('./database/schema.js', ['pipedriveTokens'])
 		.import('drizzle-orm', ['desc'])
-		.importDefaultIf(options.webhooks, './webhooks/index.js', 'webhooksRouter')
 		.importDefaultIf(hasPanel, './app-extensions/panel/index.js', 'panelRouter')
 		.importDefaultIf(hasModal, './app-extensions/modal/index.js', 'modalRouter')
 		.addBlock('const app = express();')
