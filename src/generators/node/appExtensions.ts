@@ -1,18 +1,21 @@
-import dedent from 'dedent';
-import { join } from 'path';
-import { writeFile } from '../../utils/writeFile.js';
 import type { GeneratorOptions } from '../interface.js';
-
-const routerStub = dedent`
-  import { Router } from 'express';
-  export default Router();
-`;
+import { generateFrontend } from './appExtensions/frontend.js';
+import { generateCustomModalExtension } from './appExtensions/modal.js';
+import { generateCustomPanelExtension } from './appExtensions/panel.js';
 
 export async function generateAppExtensions(outputDir: string, options: GeneratorOptions): Promise<void> {
-	if (options.appExtensions.includes('custom-panel')) {
-		await writeFile(join(outputDir, 'src/app-extensions/panel/index.ts'), routerStub);
+	const hasPanel = options.appExtensions.includes('custom-panel');
+	const hasModal = options.appExtensions.includes('custom-modal');
+
+	if (!hasPanel && !hasModal) return;
+
+	if (hasPanel) {
+		await generateCustomPanelExtension(outputDir);
 	}
-	if (options.appExtensions.includes('custom-modal')) {
-		await writeFile(join(outputDir, 'src/app-extensions/modal/index.ts'), routerStub);
+
+	if (hasModal) {
+		await generateCustomModalExtension(outputDir);
 	}
+
+	await generateFrontend(outputDir, { hasPanel, hasModal });
 }

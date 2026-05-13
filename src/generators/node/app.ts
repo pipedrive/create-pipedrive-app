@@ -7,6 +7,7 @@ import { RouterMountBuilder } from '../../utils/templates.js';
 export async function generateApp(outputDir: string, options: GeneratorOptions): Promise<void> {
 	const hasPanel = options.appExtensions.includes('custom-panel');
 	const hasModal = options.appExtensions.includes('custom-modal');
+	const hasAppExtensions = hasPanel || hasModal;
 
 	const mounts = new RouterMountBuilder()
 		.add('/oauth', 'oauthRouter')
@@ -17,11 +18,17 @@ export async function generateApp(outputDir: string, options: GeneratorOptions):
 
 	const content = new SourceFileBuilder()
 		.importDefault('express', 'express')
+		.importIf(hasAppExtensions, 'node:path', ['join'])
 		.importDefault('./oauth/index.js', 'oauthRouter')
 		.importDefaultIf(options.webhooks, './webhooks/index.js', 'webhooksRouter')
 		.importDefaultIf(hasPanel, './app-extensions/panel/index.js', 'panelRouter')
 		.importDefaultIf(hasModal, './app-extensions/modal/index.js', 'modalRouter')
 		.addBlock('const app = express();')
+		.addBlockIf(
+			hasAppExtensions,
+			"const appExtensionAssetsPath = join(process.cwd(), 'frontend/app-extension-ui/dist/assets');",
+		)
+		.addBlockIf(hasAppExtensions, "app.use('/extensions/assets', express.static(appExtensionAssetsPath));")
 		.addBlock(mounts)
 		.exportDefault('app')
 		.build();

@@ -69,6 +69,90 @@ describe('NodeProjectBuilder', () => {
 		await rm(tmpDir, { recursive: true, force: true });
 	});
 
+	it('adds frontend dependencies and scripts when App Extensions are selected', async () => {
+		await rm(tmpDir, { recursive: true, force: true });
+
+		await new NodeProjectBuilder(tmpDir, {
+			...options,
+			appExtensions: ['custom-panel'],
+		})
+			.addPackageJson()
+			.build();
+
+		const pkg = JSON.parse(await read('package.json')) as {
+			scripts: Record<string, string>;
+			dependencies: Record<string, string>;
+			devDependencies: Record<string, string>;
+		};
+
+		expect(pkg.dependencies['@pipedrive/app-extensions-sdk']).toBe('^0.13.1');
+		expect(pkg.dependencies.react).toBe('^18.2.0');
+		expect(pkg.dependencies['react-dom']).toBe('^18.2.0');
+		expect(pkg.dependencies['drizzle-orm']).toBe('^0.45.0');
+		expect(pkg.devDependencies.vite).toBe('^5.2.0');
+		expect(pkg.devDependencies['@vitejs/plugin-react']).toBe('^4.2.0');
+		expect(pkg.devDependencies['@types/react']).toBe('^18.2.0');
+		expect(pkg.devDependencies['@types/react-dom']).toBe('^18.2.0');
+		expect(pkg.devDependencies.tsx).toBe('^4.21.0');
+		expect(pkg.devDependencies['drizzle-kit']).toBe('^0.31.0');
+		expect(pkg.devDependencies.concurrently).toBeUndefined();
+		expect(pkg.scripts.dev).toBe('tsx watch --env-file=.env src/index.ts');
+		expect(pkg.scripts['dev:container']).toBeUndefined();
+		expect(pkg.scripts['dev:backend']).toBeUndefined();
+		expect(pkg.scripts['dev:frontend']).toBe('vite --config frontend/app-extension-ui/vite.config.ts');
+		expect(pkg.scripts['build:frontend']).toBe('vite build --config frontend/app-extension-ui/vite.config.ts');
+		expect(pkg.scripts['preview:frontend']).toBe('vite preview --config frontend/app-extension-ui/vite.config.ts');
+		expect(pkg.scripts.build).toBe('tsc && vite build --config frontend/app-extension-ui/vite.config.ts');
+		expect(pkg.scripts.typecheck).toBe('tsc --noEmit && tsc --noEmit -p frontend/app-extension-ui/tsconfig.json');
+
+		await rm(tmpDir, { recursive: true, force: true });
+	});
+
+	it('keeps package scripts backend-only when App Extensions are not selected', async () => {
+		await rm(tmpDir, { recursive: true, force: true });
+
+		await new NodeProjectBuilder(tmpDir, options).addPackageJson().build();
+
+		const pkg = JSON.parse(await read('package.json')) as {
+			scripts: Record<string, string>;
+			dependencies: Record<string, string>;
+			devDependencies: Record<string, string>;
+		};
+
+		expect(pkg.dependencies['@pipedrive/app-extensions-sdk']).toBeUndefined();
+		expect(pkg.dependencies.react).toBeUndefined();
+		expect(pkg.devDependencies.concurrently).toBeUndefined();
+		expect(pkg.devDependencies.vite).toBeUndefined();
+		expect(pkg.scripts.dev).toBe('tsx watch --env-file=.env src/index.ts');
+		expect(pkg.scripts['dev:container']).toBeUndefined();
+		expect(pkg.scripts['dev:backend']).toBeUndefined();
+		expect(pkg.scripts['dev:frontend']).toBeUndefined();
+		expect(pkg.scripts['build:frontend']).toBeUndefined();
+		expect(pkg.scripts['preview:frontend']).toBeUndefined();
+		expect(pkg.scripts.build).toBe('tsc');
+		expect(pkg.scripts.typecheck).toBe('tsc --noEmit');
+
+		await rm(tmpDir, { recursive: true, force: true });
+	});
+
+	it('documents Compose Watch as the App Extensions dev command', async () => {
+		await rm(tmpDir, { recursive: true, force: true });
+
+		await new NodeProjectBuilder(tmpDir, {
+			...options,
+			appExtensions: ['custom-panel'],
+		})
+			.addReadme()
+			.build();
+
+		const readme = await read('README.md');
+		expect(readme).toContain('docker-compose up --watch');
+		expect(readme).toContain('starts the backend and Vite dev server in containers');
+		expect(readme).not.toContain('npm run dev:frontend');
+
+		await rm(tmpDir, { recursive: true, force: true });
+	});
+
 	it('generates server entry that retries database startup', async () => {
 		await rm(tmpDir, { recursive: true, force: true });
 
