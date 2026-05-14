@@ -306,9 +306,8 @@ function dockerComposeContent(options: GeneratorOptions): string {
 
 function appComposeService(options: GeneratorOptions, hasDatabaseService: boolean): string {
 	const databaseUrlOverride = composeDatabaseUrlOverride(options);
-	const dependsOn = hasDatabaseService ? '\n' + indent('depends_on:\n  db:\n    condition: service_healthy', 2) : '';
 
-	return dedent`
+	const main = dedent`
 		app:
 		  build:
 		    context: .
@@ -324,19 +323,38 @@ function appComposeService(options: GeneratorOptions, hasDatabaseService: boolea
 		    - '3000:3000'
 		  volumes:
 		    - ./package.json:/app/package.json:ro
-		    - app_node_modules:/app/node_modules${dependsOn}
-		  develop:
-		    watch:
-		      - action: sync
-		        path: ./src
-		        target: /app/src
-		        initial_sync: true
-		      - action: sync+restart
-		        path: ./tsconfig.json
-		        target: /app/tsconfig.json
-		      - action: rebuild
-		        path: ./package.json
+		    - app_node_modules:/app/node_modules
 	`;
+
+	const dependsOn = hasDatabaseService
+		? indent(
+				dedent`
+					depends_on:
+					  db:
+					    condition: service_healthy
+				`,
+				2,
+			)
+		: null;
+
+	const develop = indent(
+		dedent`
+			develop:
+			  watch:
+			    - action: sync
+			      path: ./src
+			      target: /app/src
+			      initial_sync: true
+			    - action: sync+restart
+			      path: ./tsconfig.json
+			      target: /app/tsconfig.json
+			    - action: rebuild
+			      path: ./package.json
+		`,
+		2,
+	);
+
+	return [main, ...(dependsOn ? [dependsOn] : []), develop].join('\n');
 }
 
 function composeDatabaseUrlOverride(options: GeneratorOptions): string {
