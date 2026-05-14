@@ -4,31 +4,20 @@ import { isCliEntrypoint, nextStepLines } from './cli.js';
 
 describe('nextStepLines', () => {
 	it('prints backend-only next steps for apps without App Extensions', () => {
-		expect(
-			nextStepLines({
-				nameOrPath: 'test-app',
-				database: 'sqlite',
-				installDeps: false,
-				hasAppExtensions: false,
-			}),
-		).toEqual(['', 'Next steps:', '  cd test-app', '  cp .env.example .env', '  npm install', '  npm run dev']);
+		expect(nextStepLines({ nameOrPath: 'test-app', database: 'sqlite', installDeps: false, hasAppExtensions: false }).join('\n')).toBe(`
+Next steps:
+  cd test-app
+  cp .env.example .env
+  npm install
+  npm run dev`);
 	});
 
 	it('prints the Compose Watch command when App Extensions are selected', () => {
-		expect(
-			nextStepLines({
-				nameOrPath: 'test-app',
-				database: 'postgres',
-				installDeps: true,
-				hasAppExtensions: true,
-			}),
-		).toEqual([
-			'',
-			'Next steps:',
-			'  cd test-app',
-			'  cp .env.example .env',
-			'  docker-compose up --watch',
-		]);
+		expect(nextStepLines({ nameOrPath: 'test-app', database: 'postgres', installDeps: true, hasAppExtensions: true }).join('\n')).toBe(`
+Next steps:
+  cd test-app
+  cp .env.example .env
+  docker-compose up --watch`);
 	});
 });
 
@@ -39,9 +28,7 @@ describe('isCliEntrypoint', () => {
 		const importMetaUrl = pathToFileURL(realCliPath).href;
 
 		expect(
-			isCliEntrypoint(importMetaUrl, binSymlinkPath, (path) =>
-				path === binSymlinkPath ? realCliPath : path,
-			),
+			isCliEntrypoint(importMetaUrl, binSymlinkPath, (path) => (path === binSymlinkPath ? realCliPath : path)),
 		).toBe(true);
 	});
 

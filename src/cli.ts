@@ -20,17 +20,18 @@ interface NextStepOptions {
 export function nextStepLines(options: NextStepOptions): string[] {
 	const needsDocker = options.database === 'postgres' || options.database === 'mysql';
 	const runWithCompose = options.hasAppExtensions;
-	const lines = [
-		'',
-		'Next steps:',
-		`  cd ${options.nameOrPath}`,
-		'  cp .env.example .env',
-		...(runWithCompose
-			? ['  docker-compose up --watch']
-			: [...(needsDocker ? ['  docker-compose up -d db'] : []), ...(!options.installDeps ? ['  npm install'] : []), '  npm run dev']),
-	];
 
-	return lines;
+	const steps = [`cd ${options.nameOrPath}`, 'cp .env.example .env'];
+
+	if (runWithCompose) {
+		steps.push('docker-compose up --watch');
+	} else {
+		if (needsDocker) steps.push('docker-compose up -d db');
+		if (!options.installDeps) steps.push('npm install');
+		steps.push('npm run dev');
+	}
+
+	return ['', 'Next steps:', ...steps.map((s) => `  ${s}`)];
 }
 
 function printNextSteps(options: NextStepOptions): void {
@@ -41,7 +42,11 @@ function printNextSteps(options: NextStepOptions): void {
 
 type ResolvePath = (path: string) => string;
 
-export function isCliEntrypoint(importMetaUrl: string, argvPath: string | undefined, resolvePath: ResolvePath = realpathSync): boolean {
+export function isCliEntrypoint(
+	importMetaUrl: string,
+	argvPath: string | undefined,
+	resolvePath: ResolvePath = realpathSync,
+): boolean {
 	if (!argvPath) return false;
 
 	try {

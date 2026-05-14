@@ -289,7 +289,13 @@ function dockerComposeContent(options: GeneratorOptions): string {
 		volumes.push('app_node_modules:', 'app_extension_ui_node_modules:');
 	}
 
-	const lines = ['services:', ...services.map((service) => indent(service, 2)).join('\n\n').split('\n')];
+	const lines = [
+		'services:',
+		...services
+			.map((service) => indent(service, 2))
+			.join('\n\n')
+			.split('\n'),
+	];
 
 	if (volumes.length > 0) {
 		lines.push('', 'volumes:', ...volumes.map((volume) => indent(volume, 2)));
@@ -300,44 +306,37 @@ function dockerComposeContent(options: GeneratorOptions): string {
 
 function appComposeService(options: GeneratorOptions, hasDatabaseService: boolean): string {
 	const databaseUrlOverride = composeDatabaseUrlOverride(options);
-	const lines = [
-		'app:',
-		'  build:',
-		'    context: .',
-		'    dockerfile: Dockerfile.app',
-		'  user: root',
-		`  command: ${nodeVolumeCommand(`${quietInstallCommand()} && ./node_modules/.bin/tsx watch src/index.ts`)}`,
-		'  env_file:',
-		'    - .env',
-		'  environment:',
-		`    ${databaseUrlOverride}`,
-		"    CHOKIDAR_USEPOLLING: 'true'",
-		'  ports:',
-		"    - '3000:3000'",
-		'  volumes:',
-		'    - ./package.json:/app/package.json:ro',
-		'    - app_node_modules:/app/node_modules',
-	];
+	const dependsOn = hasDatabaseService ? '\n' + indent('depends_on:\n  db:\n    condition: service_healthy', 2) : '';
 
-	if (hasDatabaseService) {
-		lines.push('  depends_on:', '    db:', '      condition: service_healthy');
-	}
-
-	lines.push(
-		'  develop:',
-		'    watch:',
-		'      - action: sync',
-		'        path: ./src',
-		'        target: /app/src',
-		'        initial_sync: true',
-		'      - action: sync+restart',
-		'        path: ./tsconfig.json',
-		'        target: /app/tsconfig.json',
-		'      - action: rebuild',
-		'        path: ./package.json',
-	);
-
-	return lines.join('\n');
+	return dedent`
+		app:
+		  build:
+		    context: .
+		    dockerfile: Dockerfile.app
+		  user: root
+		  command: ${nodeVolumeCommand(`${quietInstallCommand()} && ./node_modules/.bin/tsx watch src/index.ts`)}
+		  env_file:
+		    - .env
+		  environment:
+		    ${databaseUrlOverride}
+		    CHOKIDAR_USEPOLLING: 'true'
+		  ports:
+		    - '3000:3000'
+		  volumes:
+		    - ./package.json:/app/package.json:ro
+		    - app_node_modules:/app/node_modules${dependsOn}
+		  develop:
+		    watch:
+		      - action: sync
+		        path: ./src
+		        target: /app/src
+		        initial_sync: true
+		      - action: sync+restart
+		        path: ./tsconfig.json
+		        target: /app/tsconfig.json
+		      - action: rebuild
+		        path: ./package.json
+	`;
 }
 
 function composeDatabaseUrlOverride(options: GeneratorOptions): string {
