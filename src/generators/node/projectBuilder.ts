@@ -4,6 +4,7 @@ import { writeFile } from '../../utils/writeFile.js';
 import type { GeneratorOptions } from '../interface.js';
 import { generateApp } from './app.js';
 import { generateAppExtensions } from './appExtensions.js';
+import { generateCrypto } from './crypto.js';
 import { generateDatabase } from './database.js';
 import { generateOauth } from './oauth.js';
 import { generatePipedriveClient } from './pipedriveClient.js';
@@ -40,6 +41,12 @@ class AppExtensionsStep implements BuildStep {
 class PipedriveClientStep implements BuildStep {
 	async execute(outputDir: string, options: GeneratorOptions): Promise<void> {
 		await generatePipedriveClient(outputDir, options);
+	}
+}
+
+class CryptoStep implements BuildStep {
+	async execute(outputDir: string, _options: GeneratorOptions): Promise<void> {
+		await generateCrypto(outputDir);
 	}
 }
 
@@ -189,6 +196,8 @@ class EnvExampleStep implements BuildStep {
 				PIPEDRIVE_REDIRECT_URI=http://localhost:3000/oauth/callback
 				DATABASE_URL=${databaseUrlExample[options.database]}
 				PORT=3000
+				ENCRYPTION_KEY=
+				# generate with: openssl rand -hex 32
 				${extensionUrls}
 			`,
 		);
@@ -304,6 +313,9 @@ export class NodeProjectBuilder {
 	}
 	addPipedriveClient(): this {
 		return this.addStep(new PipedriveClientStep());
+	}
+	addCrypto(): this {
+		return this.addStep(new CryptoStep());
 	}
 	addServerEntry(): this {
 		return this.addStep(new ServerEntryStep());

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readFile, rm } from 'node:fs/promises';
+import { readFile, rm, mkdtemp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import type { GeneratorOptions } from '../interface.js';
@@ -165,5 +165,38 @@ describe('NodeProjectBuilder', () => {
 		expect(content).toContain('Database is not ready yet');
 
 		await rm(tmpDir, { recursive: true, force: true });
+	});
+
+	it('generates ENCRYPTION_KEY in .env.example', async () => {
+		const outputDir = await mkdtemp(join(tmpdir(), 'cpa-builder-crypto-'));
+		try {
+			const builder = new NodeProjectBuilder(outputDir, {
+				projectName: 'test',
+				database: 'sqlite',
+				appExtensions: [],
+			});
+			await builder.addEnvExample().build();
+			const env = await readFile(join(outputDir, '.env.example'), 'utf8');
+			expect(env).toContain('ENCRYPTION_KEY=');
+			expect(env).toContain('openssl rand -hex 32');
+		} finally {
+			await rm(outputDir, { recursive: true, force: true });
+		}
+	});
+
+	it('generates src/crypto/encrypt.ts via addCrypto', async () => {
+		const outputDir = await mkdtemp(join(tmpdir(), 'cpa-builder-crypto-'));
+		try {
+			const builder = new NodeProjectBuilder(outputDir, {
+				projectName: 'test',
+				database: 'sqlite',
+				appExtensions: [],
+			});
+			await builder.addCrypto().build();
+			const content = await readFile(join(outputDir, 'src/crypto/encrypt.ts'), 'utf8');
+			expect(content).toContain('aes-256-gcm');
+		} finally {
+			await rm(outputDir, { recursive: true, force: true });
+		}
 	});
 });

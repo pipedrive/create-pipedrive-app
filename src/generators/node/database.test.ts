@@ -387,4 +387,78 @@ describe('generateDatabase — tokenRepository.ts', () => {
 		expect(compose).toContain('depends_on:');
 		expect(compose).toContain('condition: service_healthy');
 	});
+
+	it('postgres schema uses text for access_token and refresh_token', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const schema = await read('src/database/schema.ts');
+		expect(schema).not.toContain("varchar('access_token'");
+		expect(schema).not.toContain("varchar('refresh_token'");
+		expect(schema).toContain("text('access_token')");
+		expect(schema).toContain("text('refresh_token')");
+	});
+
+	it('postgres migration uses TEXT for access_token and refresh_token', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const migration = await read('src/database/migrations/0000_init.sql');
+		expect(migration).toMatch(/"access_token" TEXT/);
+		expect(migration).toMatch(/"refresh_token" TEXT/);
+	});
+
+	it('tokenRepository imports encrypt and decrypt', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const repo = await read('src/database/tokenRepository.ts');
+		expect(repo).toContain("from '../crypto/encrypt.js'");
+		expect(repo).toContain('encrypt(token.access_token)');
+		expect(repo).toContain('encrypt(token.refresh_token)');
+		expect(repo).toContain('decrypt(row.accessToken)');
+		expect(repo).toContain('decrypt(row.refreshToken)');
+	});
+
+	it('mysql schema uses text for access_token and refresh_token', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, mysqlOptions);
+		const schema = await read('src/database/schema.ts');
+		expect(schema).not.toContain("varchar('access_token'");
+		expect(schema).not.toContain("varchar('refresh_token'");
+		expect(schema).toContain("text('access_token')");
+		expect(schema).toContain("text('refresh_token')");
+	});
+
+	it('mysql migration uses TEXT for access_token and refresh_token', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, mysqlOptions);
+		const migration = await read('src/database/migrations/0000_init.sql');
+		expect(migration).toMatch(/`access_token` TEXT/);
+		expect(migration).toMatch(/`refresh_token` TEXT/);
+	});
+
+	it('mysql tokenRepository imports encrypt and decrypt', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, mysqlOptions);
+		const repo = await read('src/database/tokenRepository.ts');
+		expect(repo).toContain("from '../crypto/encrypt.js'");
+		expect(repo).toContain('encrypt(token.access_token)');
+		expect(repo).toContain('encrypt(token.refresh_token)');
+		expect(repo).toContain('decrypt(row.accessToken)');
+		expect(repo).toContain('decrypt(row.refreshToken)');
+	});
+});
+
+describe('generateDatabase — Dockerfile', () => {
+	it('generates Dockerfile with USER node when no app extensions', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, sqliteOptions);
+		expect(await exists(join(tmpDir, 'Dockerfile'))).toBe(true);
+		const content = await read('Dockerfile');
+		expect(content).toContain('FROM node:24-alpine');
+		expect(content).toContain('WORKDIR /app');
+		expect(content).toContain('COPY package*.json ./');
+		expect(content).toContain('RUN npm install');
+		expect(content).toContain('COPY . .');
+		expect(content).toContain('RUN mkdir -p /app/data && chown -R node:node /app/data');
+		expect(content).toContain('USER node');
+	});
 });

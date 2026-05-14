@@ -36,8 +36,8 @@ function schemaContent(database: GeneratorOptions['database']): string {
 				{
 					pipedriveCompanyId: integer('pipedrive_company_id').notNull(),
 					pipedriveUserId: integer('pipedrive_user_id').notNull(),
-					accessToken: varchar('access_token', { length: 768 }).notNull(),
-					refreshToken: varchar('refresh_token', { length: 768 }).notNull(),
+					accessToken: text('access_token').notNull(),
+					refreshToken: text('refresh_token').notNull(),
 					tokenType: varchar('token_type', { length: 50 }).notNull().default('bearer'),
 					accessTokenExpiresAt: timestamp('access_token_expires_at').notNull(),
 					refreshTokenExpiresAt: timestamp('refresh_token_expires_at').notNull(),
@@ -62,8 +62,8 @@ function schemaContent(database: GeneratorOptions['database']): string {
 				{
 					pipedriveCompanyId: int('pipedrive_company_id').notNull(),
 					pipedriveUserId: int('pipedrive_user_id').notNull(),
-					accessToken: varchar('access_token', { length: 768 }).notNull(),
-					refreshToken: varchar('refresh_token', { length: 768 }).notNull(),
+					accessToken: text('access_token').notNull(),
+					refreshToken: text('refresh_token').notNull(),
 					tokenType: varchar('token_type', { length: 50 }).notNull().default('bearer'),
 					accessTokenExpiresAt: timestamp('access_token_expires_at').notNull(),
 					refreshTokenExpiresAt: timestamp('refresh_token_expires_at').notNull(),
@@ -196,8 +196,8 @@ function migrationSqlContent(database: GeneratorOptions['database']): string {
 			CREATE TABLE IF NOT EXISTS "pipedrive_tokens" (
 			  "pipedrive_company_id" INTEGER NOT NULL,
 			  "pipedrive_user_id" INTEGER NOT NULL,
-			  "access_token" VARCHAR(768) NOT NULL,
-			  "refresh_token" VARCHAR(768) NOT NULL,
+			  "access_token" TEXT NOT NULL,
+			  "refresh_token" TEXT NOT NULL,
 			  "token_type" VARCHAR(50) NOT NULL DEFAULT 'bearer',
 			  "access_token_expires_at" TIMESTAMP NOT NULL,
 			  "refresh_token_expires_at" TIMESTAMP NOT NULL,
@@ -215,8 +215,8 @@ function migrationSqlContent(database: GeneratorOptions['database']): string {
 			CREATE TABLE IF NOT EXISTS \`pipedrive_tokens\` (
 			  \`pipedrive_company_id\` INT NOT NULL,
 			  \`pipedrive_user_id\` INT NOT NULL,
-			  \`access_token\` VARCHAR(768) NOT NULL,
-			  \`refresh_token\` VARCHAR(768) NOT NULL,
+			  \`access_token\` TEXT NOT NULL,
+			  \`refresh_token\` TEXT NOT NULL,
 			  \`token_type\` VARCHAR(50) NOT NULL DEFAULT 'bearer',
 			  \`access_token_expires_at\` TIMESTAMP NOT NULL,
 			  \`refresh_token_expires_at\` TIMESTAMP NOT NULL,
@@ -258,6 +258,7 @@ function tokenRepositoryContent(database: GeneratorOptions['database']): string 
 			import type { TokenResponse } from 'pipedrive/v2';
 			import { db } from './index.js';
 			import { pipedriveTokens } from './schema.js';
+			import { encrypt, decrypt } from '../crypto/encrypt.js';
 
 			const REFRESH_TOKEN_TTL_MS = 60 * 24 * 60 * 60 * 1000;
 
@@ -265,8 +266,8 @@ function tokenRepositoryContent(database: GeneratorOptions['database']): string 
 
 			function toTokenResponse(row: typeof pipedriveTokens.$inferSelect): TokenResponse {
 				return {
-					access_token: row.accessToken,
-					refresh_token: row.refreshToken,
+					access_token: decrypt(row.accessToken),
+					refresh_token: decrypt(row.refreshToken),
 					token_type: row.tokenType,
 					expires_in: Math.max(0, Math.floor((row.accessTokenExpiresAt.getTime() - Date.now()) / 1000)),
 					scope: row.scope ?? '',
@@ -304,8 +305,8 @@ function tokenRepositoryContent(database: GeneratorOptions['database']): string 
 					.values({
 						pipedriveCompanyId: companyId,
 						pipedriveUserId: userId,
-						accessToken: token.access_token,
-						refreshToken: token.refresh_token,
+						accessToken: encrypt(token.access_token),
+						refreshToken: encrypt(token.refresh_token),
 						tokenType: token.token_type,
 						accessTokenExpiresAt,
 						refreshTokenExpiresAt,
@@ -316,8 +317,8 @@ function tokenRepositoryContent(database: GeneratorOptions['database']): string 
 					})
 					.onDuplicateKeyUpdate({
 						set: {
-							accessToken: token.access_token,
-							refreshToken: token.refresh_token,
+							accessToken: encrypt(token.access_token),
+							refreshToken: encrypt(token.refresh_token),
 							tokenType: token.token_type,
 							accessTokenExpiresAt,
 							refreshTokenExpiresAt,
@@ -335,6 +336,7 @@ function tokenRepositoryContent(database: GeneratorOptions['database']): string 
 		import type { TokenResponse } from 'pipedrive/v2';
 		import { db } from './index.js';
 		import { pipedriveTokens } from './schema.js';
+		import { encrypt, decrypt } from '../crypto/encrypt.js';
 
 		const REFRESH_TOKEN_TTL_MS = 60 * 24 * 60 * 60 * 1000;
 
@@ -342,8 +344,8 @@ function tokenRepositoryContent(database: GeneratorOptions['database']): string 
 
 		function toTokenResponse(row: typeof pipedriveTokens.$inferSelect): TokenResponse {
 			return {
-				access_token: row.accessToken,
-				refresh_token: row.refreshToken,
+				access_token: decrypt(row.accessToken),
+				refresh_token: decrypt(row.refreshToken),
 				token_type: row.tokenType,
 				expires_in: Math.max(0, Math.floor((row.accessTokenExpiresAt.getTime() - Date.now()) / 1000)),
 				scope: row.scope ?? '',
@@ -381,8 +383,8 @@ function tokenRepositoryContent(database: GeneratorOptions['database']): string 
 				.values({
 					pipedriveCompanyId: companyId,
 					pipedriveUserId: userId,
-					accessToken: token.access_token,
-					refreshToken: token.refresh_token,
+					accessToken: encrypt(token.access_token),
+					refreshToken: encrypt(token.refresh_token),
 					tokenType: token.token_type,
 					accessTokenExpiresAt,
 					refreshTokenExpiresAt,
@@ -394,8 +396,8 @@ function tokenRepositoryContent(database: GeneratorOptions['database']): string 
 				.onConflictDoUpdate({
 					target: [pipedriveTokens.pipedriveCompanyId, pipedriveTokens.pipedriveUserId],
 					set: {
-						accessToken: token.access_token,
-						refreshToken: token.refresh_token,
+						accessToken: encrypt(token.access_token),
+						refreshToken: encrypt(token.refresh_token),
 						tokenType: token.token_type,
 						accessTokenExpiresAt,
 						refreshTokenExpiresAt,
@@ -794,6 +796,8 @@ async function generateDockerfile(outputDir: string): Promise<void> {
 			COPY package*.json ./
 			RUN npm install
 			COPY . .
+			RUN mkdir -p /app/data && chown -R node:node /app/data
+			USER node
 		`,
 	);
 }

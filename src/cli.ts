@@ -16,7 +16,7 @@ export function nextStepLines(options: NextStepOptions): string[] {
 		`cd ${options.nameOrPath}`,
 		'cp .env.example .env',
 		'# fill in PIPEDRIVE_CLIENT_ID and PIPEDRIVE_CLIENT_SECRET',
-		'docker compose up',
+		'docker-compose up',
 	];
 
 	return ['', 'Next steps:', ...steps.map((s) => `  ${s}`)];
