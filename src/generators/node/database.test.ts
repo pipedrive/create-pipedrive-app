@@ -326,6 +326,7 @@ describe('generateDatabase — tokenRepository.ts', () => {
 		expect(compose).toContain('user: root');
 		expect(compose).toContain('tsx watch src/index.ts');
 		expect(compose).toContain('su-exec node');
+		expect(compose).toContain('chown -R node:node /app/node_modules');
 		expect(compose).toContain('3000:3000');
 		expect(compose).toContain('./package.json:/app/package.json:ro');
 		expect(compose).toContain('app_node_modules:/app/node_modules');
@@ -338,6 +339,7 @@ describe('generateDatabase — tokenRepository.ts', () => {
 		expect(compose).toContain('dockerfile: Dockerfile.app-extension-ui');
 		expect(compose).toContain('npm run dev:frontend');
 		expect(compose).toContain('su-exec node');
+		expect(compose).toContain('chown -R node:node /app/node_modules');
 		expect(compose).toContain('5173:5173');
 		expect(compose).toContain('./package.json:/app/package.json:ro');
 		expect(compose).toContain('app_extension_ui_node_modules:/app/node_modules');
@@ -384,6 +386,8 @@ describe('generateDatabase — tokenRepository.ts', () => {
 		expect(compose).toContain('DATABASE_URL: postgresql://app:app@db:5432/test-app');
 		expect(compose).toContain('depends_on:');
 		expect(compose).toContain('condition: service_healthy');
+		expect(compose).toContain('postgres_data:/var/lib/postgresql/data');
+		expect(compose).not.toContain('db_data:');
 	});
 
 	it('postgres schema uses text for access_token and refresh_token', async () => {
@@ -488,6 +492,14 @@ describe('generateDatabase — ComposeBuilder behavior', () => {
 		const content = await read('docker-compose.yml');
 		expect(content).not.toContain('app-extension-ui');
 		expect(content).not.toContain('Dockerfile.app-extension-ui');
+	});
+
+	it('mysql with app extensions uses mysql_data volume name', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, { ...mysqlOptions, appExtensions: ['custom-panel'] });
+		const compose = await read('docker-compose.yml');
+		expect(compose).toContain('mysql_data:/var/lib/mysql');
+		expect(compose).not.toContain('db_data:');
 	});
 });
 

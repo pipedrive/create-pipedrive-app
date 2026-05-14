@@ -468,8 +468,8 @@ function buildBackendService(options: GeneratorOptions): { name: string; service
 			database === 'postgres'
 				? `postgresql://app:app@db:5432/${projectName}`
 				: database === 'mysql'
-				  ? `mysql://app:app@db:3306/${projectName}`
-				  : 'file:./data.db';
+					? `mysql://app:app@db:3306/${projectName}`
+					: 'file:./data.db';
 
 		const service: ComposeService = {
 			build: { context: '.', dockerfile: 'Dockerfile.app' },
@@ -494,8 +494,8 @@ function buildBackendService(options: GeneratorOptions): { name: string; service
 	const databaseUrl = isSqlite
 		? 'file:/app/data/data.db'
 		: database === 'postgres'
-		  ? `postgresql://app:app@db:5432/${projectName}`
-		  : `mysql://app:app@db:3306/${projectName}`;
+			? `postgresql://app:app@db:5432/${projectName}`
+			: `mysql://app:app@db:3306/${projectName}`;
 
 	const service: ComposeService = {
 		build: '.',
@@ -512,7 +512,11 @@ function buildBackendService(options: GeneratorOptions): { name: string; service
 	return { name: 'backend', service };
 }
 
-function buildDatabaseService(options: GeneratorOptions): { name: string; service: ComposeService; volumeName: string } {
+function buildDatabaseService(options: GeneratorOptions): {
+	name: string;
+	service: ComposeService;
+	volumeName: string;
+} {
 	const { database, projectName, appExtensions } = options;
 	const hasAppExt = appExtensions.length > 0;
 
@@ -640,7 +644,6 @@ async function generateDockerCompose(outputDir: string, options: GeneratorOption
 
 	await writeFile(join(outputDir, 'docker-compose.yml'), yaml.stringify(config));
 }
-
 
 function nodeVolumeCommand(command: string): string {
 	return `sh -c "chown -R node:node /app/node_modules && su-exec node sh -c '${command}'"`;
