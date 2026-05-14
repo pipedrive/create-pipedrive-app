@@ -7,7 +7,6 @@ import { generateAppExtensions } from './appExtensions.js';
 import { generateDatabase } from './database.js';
 import { generateOauth } from './oauth.js';
 import { generatePipedriveClient } from './pipedriveClient.js';
-import { generateWebhooks } from './webhooks.js';
 import { envVarAccess } from '../../utils/templates.js';
 
 export interface BuildStep {
@@ -29,12 +28,6 @@ class DatabaseStep implements BuildStep {
 class AppStep implements BuildStep {
 	async execute(outputDir: string, options: GeneratorOptions): Promise<void> {
 		await generateApp(outputDir, options);
-	}
-}
-
-class WebhooksStep implements BuildStep {
-	async execute(outputDir: string, options: GeneratorOptions): Promise<void> {
-		await generateWebhooks(outputDir, options);
 	}
 }
 
@@ -119,6 +112,7 @@ class PackageJsonStep implements BuildStep {
 				'build': hasAppExtensions
 					? 'tsc && vite build --config frontend/app-extension-ui/vite.config.ts'
 					: 'tsc',
+				'start': 'node --env-file=.env dist/index.js',
 				'typecheck': hasAppExtensions
 					? 'tsc --noEmit && tsc --noEmit -p frontend/app-extension-ui/tsconfig.json'
 					: 'tsc --noEmit',
@@ -304,9 +298,6 @@ export class NodeProjectBuilder {
 	}
 	addApp(): this {
 		return this.addStep(new AppStep());
-	}
-	addWebhooks(): this {
-		return this.addStep(new WebhooksStep());
 	}
 	addAppExtensions(): this {
 		return this.addStep(new AppExtensionsStep());

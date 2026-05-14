@@ -3,21 +3,13 @@ import { pathToFileURL } from 'node:url';
 import { isCliEntrypoint, nextStepLines } from './cli.js';
 
 describe('nextStepLines', () => {
-	it('prints backend-only next steps for apps without App Extensions', () => {
-		expect(nextStepLines({ nameOrPath: 'test-app', database: 'sqlite', installDeps: false, hasAppExtensions: false }).join('\n')).toBe(`
+	it('outputs the four next steps', () => {
+		expect(nextStepLines({ nameOrPath: 'test-app' }).join('\n')).toBe(`
 Next steps:
   cd test-app
   cp .env.example .env
-  npm install
-  npm run dev`);
-	});
-
-	it('prints the Compose Watch command when App Extensions are selected', () => {
-		expect(nextStepLines({ nameOrPath: 'test-app', database: 'postgres', installDeps: true, hasAppExtensions: true }).join('\n')).toBe(`
-Next steps:
-  cd test-app
-  cp .env.example .env
-  docker-compose up --watch`);
+  # fill in PIPEDRIVE_CLIENT_ID and PIPEDRIVE_CLIENT_SECRET
+  docker compose up`);
 	});
 });
 

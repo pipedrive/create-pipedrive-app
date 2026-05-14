@@ -9,7 +9,6 @@ import type { BuildStep } from './projectBuilder.js';
 const options: GeneratorOptions = {
 	projectName: 'test-app',
 	database: 'postgres',
-	webhooks: false,
 	appExtensions: [],
 };
 

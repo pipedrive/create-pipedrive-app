@@ -12,6 +12,7 @@
     "lint": "eslint src",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "clean": "rm -rf apps/",
     "generate": "tsx src/cli.ts apps/test-app",
     "prepare": "husky"
   },

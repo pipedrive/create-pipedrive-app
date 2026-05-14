@@ -7,7 +7,6 @@ export const nodeGenerator: Generator = {
 			.addDatabase()
 			.addOAuth()
 			.addApp()
-			.when(options.webhooks, (b) => b.addWebhooks())
 			.when(options.appExtensions.length > 0, (b) => b.addAppExtensions())
 			.addPipedriveClient()
 			.addServerEntry()

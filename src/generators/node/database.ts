@@ -10,13 +10,14 @@ export async function generateDatabase(outputDir: string, options: GeneratorOpti
 	await generateMigrationSql(outputDir, options);
 	await generateMigrationJournal(outputDir, options);
 	await generateDrizzleConfig(outputDir, options);
-	if (shouldGenerateDockerCompose(options)) {
-		await generateDockerCompose(outputDir, options);
-	}
+	await generateTokenRepository(outputDir, options);
+	await generateDockerCompose(outputDir, options);
 	if (options.appExtensions.length > 0) {
 		await generateAppDockerfile(outputDir);
 		await generateAppExtensionUiDockerfile(outputDir);
 		await generateDockerignore(outputDir);
+	} else {
+		await generateDockerfile(outputDir);
 	}
 }
 
@@ -246,6 +247,167 @@ function migrationSqlContent(database: GeneratorOptions['database']): string {
 	`;
 }
 
+async function generateTokenRepository(outputDir: string, options: GeneratorOptions): Promise<void> {
+	await writeFile(join(outputDir, 'src/database/tokenRepository.ts'), tokenRepositoryContent(options.database));
+}
+
+function tokenRepositoryContent(database: GeneratorOptions['database']): string {
+	if (database === 'mysql') {
+		return dedent`
+			import { and, desc, eq } from 'drizzle-orm';
+			import type { TokenResponse } from 'pipedrive/v2';
+			import { db } from './index.js';
+			import { pipedriveTokens } from './schema.js';
+
+			const REFRESH_TOKEN_TTL_MS = 60 * 24 * 60 * 60 * 1000;
+
+			export type StoredToken = { companyId: number; userId: number; token: TokenResponse };
+
+			function toTokenResponse(row: typeof pipedriveTokens.$inferSelect): TokenResponse {
+				return {
+					access_token: row.accessToken,
+					refresh_token: row.refreshToken,
+					token_type: row.tokenType,
+					expires_in: Math.max(0, Math.floor((row.accessTokenExpiresAt.getTime() - Date.now()) / 1000)),
+					scope: row.scope ?? '',
+					api_domain: row.apiDomain,
+				};
+			}
+
+			export async function getToken(companyId: number, userId: number): Promise<StoredToken | null> {
+				const rows = await db
+					.select()
+					.from(pipedriveTokens)
+					.where(and(eq(pipedriveTokens.pipedriveCompanyId, companyId), eq(pipedriveTokens.pipedriveUserId, userId)))
+					.limit(1);
+				if (!rows[0]) return null;
+				return { companyId, userId, token: toTokenResponse(rows[0]) };
+			}
+
+			export async function getTokenByCompany(companyId: number): Promise<StoredToken | null> {
+				const rows = await db
+					.select()
+					.from(pipedriveTokens)
+					.where(eq(pipedriveTokens.pipedriveCompanyId, companyId))
+					.orderBy(desc(pipedriveTokens.updatedAt))
+					.limit(1);
+				if (!rows[0]) return null;
+				return { companyId, userId: rows[0].pipedriveUserId, token: toTokenResponse(rows[0]) };
+			}
+
+			export async function upsertToken(companyId: number, userId: number, token: TokenResponse): Promise<void> {
+				const now = new Date();
+				const accessTokenExpiresAt = new Date(Date.now() + token.expires_in * 1000);
+				const refreshTokenExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
+				await db
+					.insert(pipedriveTokens)
+					.values({
+						pipedriveCompanyId: companyId,
+						pipedriveUserId: userId,
+						accessToken: token.access_token,
+						refreshToken: token.refresh_token,
+						tokenType: token.token_type,
+						accessTokenExpiresAt,
+						refreshTokenExpiresAt,
+						scope: token.scope,
+						apiDomain: token.api_domain,
+						createdAt: now,
+						updatedAt: now,
+					})
+					.onDuplicateKeyUpdate({
+						set: {
+							accessToken: token.access_token,
+							refreshToken: token.refresh_token,
+							tokenType: token.token_type,
+							accessTokenExpiresAt,
+							refreshTokenExpiresAt,
+							scope: token.scope,
+							apiDomain: token.api_domain,
+							updatedAt: now,
+						},
+					});
+			}
+		`;
+	}
+
+	return dedent`
+		import { and, desc, eq } from 'drizzle-orm';
+		import type { TokenResponse } from 'pipedrive/v2';
+		import { db } from './index.js';
+		import { pipedriveTokens } from './schema.js';
+
+		const REFRESH_TOKEN_TTL_MS = 60 * 24 * 60 * 60 * 1000;
+
+		export type StoredToken = { companyId: number; userId: number; token: TokenResponse };
+
+		function toTokenResponse(row: typeof pipedriveTokens.$inferSelect): TokenResponse {
+			return {
+				access_token: row.accessToken,
+				refresh_token: row.refreshToken,
+				token_type: row.tokenType,
+				expires_in: Math.max(0, Math.floor((row.accessTokenExpiresAt.getTime() - Date.now()) / 1000)),
+				scope: row.scope ?? '',
+				api_domain: row.apiDomain,
+			};
+		}
+
+		export async function getToken(companyId: number, userId: number): Promise<StoredToken | null> {
+			const rows = await db
+				.select()
+				.from(pipedriveTokens)
+				.where(and(eq(pipedriveTokens.pipedriveCompanyId, companyId), eq(pipedriveTokens.pipedriveUserId, userId)))
+				.limit(1);
+			if (!rows[0]) return null;
+			return { companyId, userId, token: toTokenResponse(rows[0]) };
+		}
+
+		export async function getTokenByCompany(companyId: number): Promise<StoredToken | null> {
+			const rows = await db
+				.select()
+				.from(pipedriveTokens)
+				.where(eq(pipedriveTokens.pipedriveCompanyId, companyId))
+				.orderBy(desc(pipedriveTokens.updatedAt))
+				.limit(1);
+			if (!rows[0]) return null;
+			return { companyId, userId: rows[0].pipedriveUserId, token: toTokenResponse(rows[0]) };
+		}
+
+		export async function upsertToken(companyId: number, userId: number, token: TokenResponse): Promise<void> {
+			const now = new Date();
+			const accessTokenExpiresAt = new Date(Date.now() + token.expires_in * 1000);
+			const refreshTokenExpiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
+			await db
+				.insert(pipedriveTokens)
+				.values({
+					pipedriveCompanyId: companyId,
+					pipedriveUserId: userId,
+					accessToken: token.access_token,
+					refreshToken: token.refresh_token,
+					tokenType: token.token_type,
+					accessTokenExpiresAt,
+					refreshTokenExpiresAt,
+					scope: token.scope,
+					apiDomain: token.api_domain,
+					createdAt: now,
+					updatedAt: now,
+				})
+				.onConflictDoUpdate({
+					target: [pipedriveTokens.pipedriveCompanyId, pipedriveTokens.pipedriveUserId],
+					set: {
+						accessToken: token.access_token,
+						refreshToken: token.refresh_token,
+						tokenType: token.token_type,
+						accessTokenExpiresAt,
+						refreshTokenExpiresAt,
+						scope: token.scope,
+						apiDomain: token.api_domain,
+						updatedAt: now,
+					},
+				});
+		}
+	`;
+}
+
 async function generateMigrationJournal(outputDir: string, options: GeneratorOptions): Promise<void> {
 	const dialectMap: Record<GeneratorOptions['database'], string> = {
 		postgres: 'postgresql',
@@ -260,15 +422,126 @@ async function generateMigrationJournal(outputDir: string, options: GeneratorOpt
 	await writeFile(join(outputDir, 'src/database/migrations/meta/_journal.json'), JSON.stringify(journal, null, 2));
 }
 
-function shouldGenerateDockerCompose(options: GeneratorOptions): boolean {
-	return options.database === 'postgres' || options.database === 'mysql' || options.appExtensions.length > 0;
-}
-
 async function generateDockerCompose(outputDir: string, options: GeneratorOptions): Promise<void> {
-	await writeFile(join(outputDir, 'docker-compose.yml'), dockerComposeContent(options));
+	const hasAppExtensions = options.appExtensions.length > 0;
+
+	if (hasAppExtensions) {
+		await writeFile(join(outputDir, 'docker-compose.yml'), appExtensionsComposeContent(options));
+		return;
+	}
+
+	const { database, projectName } = options;
+	let content: string;
+
+	if (database === 'sqlite') {
+		content = dedent`
+			services:
+			  backend:
+			    build: .
+			    command: node_modules/.bin/tsx watch src/index.ts
+			    ports:
+			      - '\${PORT:-3000}:3000'
+			    env_file: .env
+			    environment:
+			      DATABASE_URL: file:/app/data/data.db
+			    volumes:
+			      - ./src:/app/src
+			      - sqlite_data:/app/data
+			    develop:
+			      watch:
+			        - action: rebuild
+			          path: package.json
+
+			volumes:
+			  sqlite_data:
+		`;
+	} else if (database === 'postgres') {
+		content = dedent`
+			services:
+			  backend:
+			    build: .
+			    command: node_modules/.bin/tsx watch src/index.ts
+			    ports:
+			      - '\${PORT:-3000}:3000'
+			    env_file: .env
+			    environment:
+			      DATABASE_URL: postgresql://app:app@db:5432/${projectName}
+			    volumes:
+			      - ./src:/app/src
+			    depends_on:
+			      db:
+			        condition: service_healthy
+			    develop:
+			      watch:
+			        - action: rebuild
+			          path: package.json
+
+			  db:
+			    image: postgres:16
+			    environment:
+			      POSTGRES_USER: app
+			      POSTGRES_PASSWORD: app
+			      POSTGRES_DB: ${projectName}
+			    ports:
+			      - '5432:5432'
+			    volumes:
+			      - db_data:/var/lib/postgresql/data
+			    healthcheck:
+			      test: ['CMD', 'pg_isready', '-U', 'app', '-d', '${projectName}']
+			      interval: 5s
+			      timeout: 5s
+			      retries: 5
+
+			volumes:
+			  db_data:
+		`;
+	} else {
+		content = dedent`
+			services:
+			  backend:
+			    build: .
+			    command: node_modules/.bin/tsx watch src/index.ts
+			    ports:
+			      - '\${PORT:-3000}:3000'
+			    env_file: .env
+			    environment:
+			      DATABASE_URL: mysql://app:app@db:3306/${projectName}
+			    volumes:
+			      - ./src:/app/src
+			    depends_on:
+			      db:
+			        condition: service_healthy
+			    develop:
+			      watch:
+			        - action: rebuild
+			          path: package.json
+
+			  db:
+			    image: mysql:8
+			    environment:
+			      MYSQL_ROOT_PASSWORD: app
+			      MYSQL_DATABASE: ${projectName}
+			      MYSQL_USER: app
+			      MYSQL_PASSWORD: app
+			    ports:
+			      - '127.0.0.1:3307:3306'
+			    volumes:
+			      - db_data:/var/lib/mysql
+			    healthcheck:
+			      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'app', '--password=app']
+			      interval: 5s
+			      timeout: 5s
+			      retries: 5
+
+			volumes:
+			  db_data:
+		`;
+	}
+
+	await writeFile(join(outputDir, 'docker-compose.yml'), content);
 }
 
-function dockerComposeContent(options: GeneratorOptions): string {
+function appExtensionsComposeContent(options: GeneratorOptions): string {
 	const services: string[] = [];
 	const volumes: string[] = [];
 	const hasDatabaseService = options.database === 'postgres' || options.database === 'mysql';
@@ -283,11 +556,9 @@ function dockerComposeContent(options: GeneratorOptions): string {
 		volumes.push('mysql_data:');
 	}
 
-	if (options.appExtensions.length > 0) {
-		services.push(appComposeService(options, hasDatabaseService));
-		services.push(appExtensionUiComposeService());
-		volumes.push('app_node_modules:', 'app_extension_ui_node_modules:');
-	}
+	services.push(appComposeService(options, hasDatabaseService));
+	services.push(appExtensionUiComposeService());
+	volumes.push('app_node_modules:', 'app_extension_ui_node_modules:');
 
 	const lines = [
 		'services:',
@@ -510,6 +781,19 @@ async function generateDockerignore(outputDir: string): Promise<void> {
 			.env
 			frontend/app-extension-ui/dist
 			frontend/app-extension-ui/node_modules
+		`,
+	);
+}
+
+async function generateDockerfile(outputDir: string): Promise<void> {
+	await writeFile(
+		join(outputDir, 'Dockerfile'),
+		dedent`
+			FROM node:24-alpine
+			WORKDIR /app
+			COPY package*.json ./
+			RUN npm install
+			COPY . .
 		`,
 	);
 }

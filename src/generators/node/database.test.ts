@@ -19,21 +19,18 @@ afterEach(async () => {
 const pgOptions: GeneratorOptions = {
 	projectName: 'test-app',
 	database: 'postgres',
-	webhooks: false,
 	appExtensions: [],
 };
 
 const mysqlOptions: GeneratorOptions = {
 	projectName: 'test-app',
 	database: 'mysql',
-	webhooks: false,
 	appExtensions: [],
 };
 
 const sqliteOptions: GeneratorOptions = {
 	projectName: 'test-app',
 	database: 'sqlite',
-	webhooks: false,
 	appExtensions: [],
 };
 
@@ -221,34 +218,98 @@ describe('generateDatabase — drizzle.config.ts', () => {
 });
 
 describe('generateDatabase — docker-compose.yml', () => {
-	it('generates docker-compose.yml for postgres with healthcheck', async () => {
+	it('generates docker-compose.yml for postgres with backend and healthcheck', async () => {
 		const { generateDatabase } = await import('./database.js');
 		await generateDatabase(tmpDir, pgOptions);
 		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(true);
 		const content = await read('docker-compose.yml');
 		expect(content).toContain('postgres:16');
-		expect(content).toContain('postgres_data:/var/lib/postgresql/data');
+		expect(content).toContain('db_data:/var/lib/postgresql/data');
 		expect(content).toContain('pg_isready');
 		expect(content).toContain("'-d', 'test-app'");
 		expect(content).toContain('healthcheck');
+		expect(content).toContain('backend');
+		expect(content).toContain('tsx watch src/index.ts');
+		expect(content).toContain('./src:/app/src');
+		expect(content).toContain('action: rebuild');
 	});
 
-	it('generates docker-compose.yml for mysql with healthcheck', async () => {
+	it('generates docker-compose.yml for mysql with backend and healthcheck', async () => {
 		const { generateDatabase } = await import('./database.js');
 		await generateDatabase(tmpDir, mysqlOptions);
 		const content = await read('docker-compose.yml');
 		expect(content).toContain('mysql:8');
 		expect(content).toContain('127.0.0.1:3307:3306');
 		expect(content).not.toContain('3306:3306');
-		expect(content).toContain('mysql_data:/var/lib/mysql');
+		expect(content).toContain('db_data:/var/lib/mysql');
 		expect(content).toContain('mysqladmin');
 		expect(content).toContain('healthcheck');
+		expect(content).toContain('backend');
+		expect(content).toContain('tsx watch src/index.ts');
 	});
 
-	it('does not generate docker-compose.yml for sqlite', async () => {
+	it('generates docker-compose.yml for sqlite with backend only', async () => {
 		const { generateDatabase } = await import('./database.js');
 		await generateDatabase(tmpDir, sqliteOptions);
-		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(false);
+		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(true);
+		const content = await read('docker-compose.yml');
+		expect(content).toContain('backend');
+		expect(content).toContain('tsx watch src/index.ts');
+		expect(content).toContain('sqlite_data');
+		expect(content).not.toContain('mysql');
+		expect(content).not.toContain('postgres');
+	});
+});
+
+describe('generateDatabase — tokenRepository.ts', () => {
+	it('generates src/database/tokenRepository.ts', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		expect(await exists(join(tmpDir, 'src/database/tokenRepository.ts'))).toBe(true);
+	});
+
+	it('exports getToken, getTokenByCompany, upsertToken', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const content = await read('src/database/tokenRepository.ts');
+		expect(content).toContain('export async function getToken');
+		expect(content).toContain('export async function getTokenByCompany');
+		expect(content).toContain('export async function upsertToken');
+	});
+
+	it('exports StoredToken type', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const content = await read('src/database/tokenRepository.ts');
+		expect(content).toContain('StoredToken');
+	});
+
+	it('imports TokenResponse from pipedrive/v2', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const content = await read('src/database/tokenRepository.ts');
+		expect(content).toContain("from 'pipedrive/v2'");
+	});
+
+	it('postgres uses onConflictDoUpdate', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const content = await read('src/database/tokenRepository.ts');
+		expect(content).toContain('onConflictDoUpdate');
+	});
+
+	it('mysql uses onDuplicateKeyUpdate', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, mysqlOptions);
+		const content = await read('src/database/tokenRepository.ts');
+		expect(content).toContain('onDuplicateKeyUpdate');
+	});
+
+	it('sqlite uses onConflictDoUpdate', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, sqliteOptions);
+		const content = await read('src/database/tokenRepository.ts');
+		expect(content).toContain('onConflictDoUpdate');
 	});
 
 	it('generates Compose Watch frontend service when App Extensions are selected', async () => {
