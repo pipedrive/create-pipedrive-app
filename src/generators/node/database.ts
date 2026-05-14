@@ -422,9 +422,6 @@ async function generateMigrationJournal(outputDir: string, options: GeneratorOpt
 	await writeFile(join(outputDir, 'src/database/migrations/meta/_journal.json'), JSON.stringify(journal, null, 2));
 }
 
-function shouldGenerateDockerCompose(options: GeneratorOptions): boolean {
-	return options.database === 'postgres' || options.database === 'mysql' || options.appExtensions.length > 0;
-}
 
 async function generateDockerCompose(outputDir: string, options: GeneratorOptions): Promise<void> {
 	const hasAppExtensions = options.appExtensions.length > 0;
