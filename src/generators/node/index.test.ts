@@ -43,10 +43,22 @@ describe('nodeGenerator', () => {
 			'src/webhooks/index.ts',
 			'src/app-extensions/panel/index.ts',
 			'src/app-extensions/modal/index.ts',
+			'frontend/app-extension-ui/vite.config.ts',
+			'frontend/app-extension-ui/tsconfig.json',
+			'frontend/app-extension-ui/index.html',
+			'frontend/app-extension-ui/src/main.tsx',
+			'frontend/app-extension-ui/src/Panel.tsx',
+			'frontend/app-extension-ui/src/Modal.tsx',
+			'frontend/app-extension-ui/shared/pipedriveSdk.ts',
+			'frontend/app-extension-ui/shared/styles.css',
+			'Dockerfile.app',
+			'Dockerfile.app-extension-ui',
 			'src/pipedrive/client.ts',
 			'package.json',
 			'tsconfig.json',
 			'.env.example',
+			'.dockerignore',
+			'README.md',
 			'docker-compose.yml',
 		];
 
@@ -60,14 +72,19 @@ describe('nodeGenerator', () => {
 
 		expect(await exists(join(tmpDir, 'src/webhooks/index.ts'))).toBe(false);
 		expect(await exists(join(tmpDir, 'src/app-extensions'))).toBe(false);
+		expect(await exists(join(tmpDir, 'frontend/app-extension-ui'))).toBe(false);
+		expect(await exists(join(tmpDir, 'Dockerfile.app'))).toBe(false);
+		expect(await exists(join(tmpDir, 'Dockerfile.app-extension-ui'))).toBe(false);
+		expect(await exists(join(tmpDir, '.dockerignore'))).toBe(false);
 		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(false);
 	});
 
-	it('generated project passes tsc --noEmit', async () => {
+	it('generated project passes typecheck and build', async () => {
 		await nodeGenerator.generate(tmpDir, fullOptions);
 		execSync('npm install', { cwd: tmpDir, stdio: 'pipe' });
 		expect(() => {
-			execSync('npx tsc --noEmit', { cwd: tmpDir, stdio: 'pipe' });
+			execSync('npm run typecheck', { cwd: tmpDir, stdio: 'pipe' });
+			execSync('npm run build', { cwd: tmpDir, stdio: 'pipe' });
 		}).not.toThrow();
-	}, 60_000);
+	}, 120_000);
 });

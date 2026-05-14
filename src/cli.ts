@@ -1,11 +1,60 @@
 import * as clack from '@clack/prompts';
 import { spawn } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { promptAppExtensions } from './prompts/appExtensions.js';
 import { promptDatabase } from './prompts/database.js';
 import { promptProjectName } from './prompts/projectName.js';
 import { promptWebhooks } from './prompts/webhooks.js';
 import { nodeGenerator } from './generators/node/index.js';
+import type { Database } from './generators/interface.js';
+
+interface NextStepOptions {
+	nameOrPath: string;
+	database: Database;
+	installDeps: boolean;
+	hasAppExtensions: boolean;
+}
+
+export function nextStepLines(options: NextStepOptions): string[] {
+	const needsDocker = options.database === 'postgres' || options.database === 'mysql';
+	const runWithCompose = options.hasAppExtensions;
+
+	const steps = [`cd ${options.nameOrPath}`, 'cp .env.example .env'];
+
+	if (runWithCompose) {
+		steps.push('docker-compose up --watch');
+	} else {
+		if (needsDocker) steps.push('docker-compose up -d db');
+		if (!options.installDeps) steps.push('npm install');
+		steps.push('npm run dev');
+	}
+
+	return ['', 'Next steps:', ...steps.map((s) => `  ${s}`)];
+}
+
+function printNextSteps(options: NextStepOptions): void {
+	for (const line of nextStepLines(options)) {
+		console.log(line);
+	}
+}
+
+type ResolvePath = (path: string) => string;
+
+export function isCliEntrypoint(
+	importMetaUrl: string,
+	argvPath: string | undefined,
+	resolvePath: ResolvePath = realpathSync,
+): boolean {
+	if (!argvPath) return false;
+
+	try {
+		return resolvePath(fileURLToPath(importMetaUrl)) === resolvePath(argvPath);
+	} catch {
+		return importMetaUrl === pathToFileURL(argvPath).href;
+	}
+}
 
 async function main(): Promise<void> {
 	clack.intro('create-pipedrive-app');
@@ -40,13 +89,14 @@ async function main(): Promise<void> {
 		spinner.stop(ok ? 'Dependencies installed' : 'npm install failed — run it manually');
 	}
 
-	const needsDocker = database === 'postgres' || database === 'mysql';
-	console.log('\nNext steps:');
-	console.log(`  cd ${nameOrPath}`);
-	console.log('  cp .env.example .env');
-	if (needsDocker) console.log('  docker-compose up -d');
-	if (!installDeps) console.log('  npm install');
-	console.log('  npm run dev');
+	printNextSteps({
+		nameOrPath,
+		database,
+		installDeps: Boolean(installDeps),
+		hasAppExtensions: appExtensions.length > 0,
+	});
 }
 
-main();
+if (isCliEntrypoint(import.meta.url, process.argv[1])) {
+	void main();
+}

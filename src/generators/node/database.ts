@@ -10,8 +10,13 @@ export async function generateDatabase(outputDir: string, options: GeneratorOpti
 	await generateMigrationSql(outputDir, options);
 	await generateMigrationJournal(outputDir, options);
 	await generateDrizzleConfig(outputDir, options);
-	if (options.database === 'postgres' || options.database === 'mysql') {
+	if (shouldGenerateDockerCompose(options)) {
 		await generateDockerCompose(outputDir, options);
+	}
+	if (options.appExtensions.length > 0) {
+		await generateAppDockerfile(outputDir);
+		await generateAppExtensionUiDockerfile(outputDir);
+		await generateDockerignore(outputDir);
 	}
 }
 
@@ -255,53 +260,258 @@ async function generateMigrationJournal(outputDir: string, options: GeneratorOpt
 	await writeFile(join(outputDir, 'src/database/migrations/meta/_journal.json'), JSON.stringify(journal, null, 2));
 }
 
+function shouldGenerateDockerCompose(options: GeneratorOptions): boolean {
+	return options.database === 'postgres' || options.database === 'mysql' || options.appExtensions.length > 0;
+}
+
 async function generateDockerCompose(outputDir: string, options: GeneratorOptions): Promise<void> {
-	const content =
-		options.database === 'postgres'
-			? dedent`
-				services:
-				  db:
-				    image: postgres:16
-				    environment:
-				      POSTGRES_USER: app
-				      POSTGRES_PASSWORD: app
-				      POSTGRES_DB: ${options.projectName}
-				    ports:
-				      - '5432:5432'
-				    volumes:
-				      - postgres_data:/var/lib/postgresql/data
-				    healthcheck:
-				      test: ['CMD', 'pg_isready', '-U', 'app']
-				      interval: 5s
-				      timeout: 5s
-				      retries: 5
+	await writeFile(join(outputDir, 'docker-compose.yml'), dockerComposeContent(options));
+}
 
-				volumes:
-				  postgres_data:
-			`
-			: dedent`
-				services:
-				  db:
-				    image: mysql:8
-				    environment:
-				      MYSQL_ROOT_PASSWORD: app
-				      MYSQL_DATABASE: ${options.projectName}
-				      MYSQL_USER: app
-				      MYSQL_PASSWORD: app
-				    ports:
-				      - '127.0.0.1:3307:3306'
-				    volumes:
-				      - mysql_data:/var/lib/mysql
-				    healthcheck:
-				      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'app', '--password=app']
-				      interval: 5s
-				      timeout: 5s
-				      retries: 5
+function dockerComposeContent(options: GeneratorOptions): string {
+	const services: string[] = [];
+	const volumes: string[] = [];
+	const hasDatabaseService = options.database === 'postgres' || options.database === 'mysql';
 
-				volumes:
-				  mysql_data:
-			`;
-	await writeFile(join(outputDir, 'docker-compose.yml'), content);
+	if (options.database === 'postgres') {
+		services.push(postgresComposeService(options.projectName));
+		volumes.push('postgres_data:');
+	}
+
+	if (options.database === 'mysql') {
+		services.push(mysqlComposeService(options.projectName));
+		volumes.push('mysql_data:');
+	}
+
+	if (options.appExtensions.length > 0) {
+		services.push(appComposeService(options, hasDatabaseService));
+		services.push(appExtensionUiComposeService());
+		volumes.push('app_node_modules:', 'app_extension_ui_node_modules:');
+	}
+
+	const lines = [
+		'services:',
+		...services
+			.map((service) => indent(service, 2))
+			.join('\n\n')
+			.split('\n'),
+	];
+
+	if (volumes.length > 0) {
+		lines.push('', 'volumes:', ...volumes.map((volume) => indent(volume, 2)));
+	}
+
+	return `${lines.join('\n')}\n`;
+}
+
+function appComposeService(options: GeneratorOptions, hasDatabaseService: boolean): string {
+	const databaseUrlOverride = composeDatabaseUrlOverride(options);
+
+	const main = dedent`
+		app:
+		  build:
+		    context: .
+		    dockerfile: Dockerfile.app
+		  user: root
+		  command: ${nodeVolumeCommand(`${quietInstallCommand()} && ./node_modules/.bin/tsx watch src/index.ts`)}
+		  env_file:
+		    - .env
+		  environment:
+		    ${databaseUrlOverride}
+		    CHOKIDAR_USEPOLLING: 'true'
+		  ports:
+		    - '3000:3000'
+		  volumes:
+		    - ./package.json:/app/package.json:ro
+		    - app_node_modules:/app/node_modules
+	`;
+
+	const dependsOn = hasDatabaseService
+		? indent(
+				dedent`
+					depends_on:
+					  db:
+					    condition: service_healthy
+				`,
+				2,
+			)
+		: null;
+
+	const develop = indent(
+		dedent`
+			develop:
+			  watch:
+			    - action: sync
+			      path: ./src
+			      target: /app/src
+			      initial_sync: true
+			    - action: sync+restart
+			      path: ./tsconfig.json
+			      target: /app/tsconfig.json
+			    - action: rebuild
+			      path: ./package.json
+		`,
+		2,
+	);
+
+	return [main, ...(dependsOn ? [dependsOn] : []), develop].join('\n');
+}
+
+function composeDatabaseUrlOverride(options: GeneratorOptions): string {
+	if (options.database === 'postgres') {
+		return `DATABASE_URL: postgresql://app:app@db:5432/${options.projectName}`;
+	}
+
+	if (options.database === 'mysql') {
+		return `DATABASE_URL: mysql://app:app@db:3306/${options.projectName}`;
+	}
+
+	return 'DATABASE_URL: file:./data.db';
+}
+
+function postgresComposeService(projectName: string): string {
+	return dedent`
+		db:
+		  image: postgres:16
+		  environment:
+		    POSTGRES_USER: app
+		    POSTGRES_PASSWORD: app
+		    POSTGRES_DB: ${projectName}
+		  ports:
+		    - '5432:5432'
+		  volumes:
+		    - postgres_data:/var/lib/postgresql/data
+		  healthcheck:
+		    test: ['CMD', 'pg_isready', '-U', 'app', '-d', '${projectName}']
+		    interval: 5s
+		    timeout: 5s
+		    retries: 5
+	`;
+}
+
+function mysqlComposeService(projectName: string): string {
+	return dedent`
+		db:
+		  image: mysql:8
+		  environment:
+		    MYSQL_ROOT_PASSWORD: app
+		    MYSQL_DATABASE: ${projectName}
+		    MYSQL_USER: app
+		    MYSQL_PASSWORD: app
+		  ports:
+		    - '127.0.0.1:3307:3306'
+		  volumes:
+		    - mysql_data:/var/lib/mysql
+		  healthcheck:
+		    test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'app', '--password=app']
+		    interval: 5s
+		    timeout: 5s
+		    retries: 5
+	`;
+}
+
+function appExtensionUiComposeService(): string {
+	return dedent`
+		app-extension-ui:
+		  build:
+		    context: .
+		    dockerfile: Dockerfile.app-extension-ui
+		  user: root
+		  command: ${nodeVolumeCommand(`${quietInstallCommand()} && npm run dev:frontend`)}
+		  environment:
+		    CHOKIDAR_USEPOLLING: 'true'
+		  ports:
+		    - '5173:5173'
+		  volumes:
+		    - ./package.json:/app/package.json:ro
+		    - app_extension_ui_node_modules:/app/node_modules
+		  develop:
+		    watch:
+		      - action: sync
+		        path: ./frontend/app-extension-ui
+		        target: /app/frontend/app-extension-ui
+		        initial_sync: true
+		        ignore:
+		          - node_modules/
+		          - dist/
+		      - action: rebuild
+		        path: ./package.json
+	`;
+}
+
+function indent(value: string, spaces: number): string {
+	const prefix = ' '.repeat(spaces);
+	return value
+		.split('\n')
+		.map((line) => (line.length > 0 ? `${prefix}${line}` : line))
+		.join('\n');
+}
+
+function nodeVolumeCommand(command: string): string {
+	return `sh -c "chown -R node:node /app/node_modules && su-exec node sh -c '${command}'"`;
+}
+
+function quietInstallCommand(): string {
+	return 'echo Installing dependencies... && npm install --no-package-lock --no-audit --no-fund --loglevel=error';
+}
+
+async function generateAppExtensionUiDockerfile(outputDir: string): Promise<void> {
+	await writeFile(
+		join(outputDir, 'Dockerfile.app-extension-ui'),
+		dedent`
+			FROM node:24-alpine
+
+			RUN apk add --no-cache su-exec
+			WORKDIR /app
+			ENV NPM_CONFIG_USERCONFIG=/tmp/.npmrc
+			RUN mkdir -p /app/node_modules && chown -R node:node /app
+			USER node
+			RUN npm config set registry https://registry.npmjs.org/
+
+			COPY --chown=node:node package.json ./
+			COPY --chown=node:node frontend/app-extension-ui ./frontend/app-extension-ui
+
+			EXPOSE 5173
+			CMD ["npm", "run", "dev:frontend"]
+		`,
+	);
+}
+
+async function generateAppDockerfile(outputDir: string): Promise<void> {
+	await writeFile(
+		join(outputDir, 'Dockerfile.app'),
+		dedent`
+			FROM node:24-alpine
+
+			RUN apk add --no-cache su-exec
+			WORKDIR /app
+			ENV NPM_CONFIG_USERCONFIG=/tmp/.npmrc
+			RUN mkdir -p /app/node_modules && chown -R node:node /app
+			USER node
+			RUN npm config set registry https://registry.npmjs.org/
+
+			COPY --chown=node:node package.json ./
+			COPY --chown=node:node tsconfig.json ./
+			COPY --chown=node:node src ./src
+
+			EXPOSE 3000
+			CMD ["npm", "run", "dev"]
+		`,
+	);
+}
+
+async function generateDockerignore(outputDir: string): Promise<void> {
+	await writeFile(
+		join(outputDir, '.dockerignore'),
+		dedent`
+			.git
+			node_modules
+			dist
+			.env
+			frontend/app-extension-ui/dist
+			frontend/app-extension-ui/node_modules
+		`,
+	);
 }
 
 async function generateDrizzleConfig(outputDir: string, options: GeneratorOptions): Promise<void> {
