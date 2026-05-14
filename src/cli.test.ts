@@ -9,7 +9,7 @@ Next steps:
   cd test-app
   cp .env.example .env
   # fill in PIPEDRIVE_CLIENT_ID and PIPEDRIVE_CLIENT_SECRET
-  docker compose up`);
+  docker-compose up`);
 	});
 });
 
