@@ -422,7 +422,6 @@ async function generateMigrationJournal(outputDir: string, options: GeneratorOpt
 	await writeFile(join(outputDir, 'src/database/migrations/meta/_journal.json'), JSON.stringify(journal, null, 2));
 }
 
-
 async function generateDockerCompose(outputDir: string, options: GeneratorOptions): Promise<void> {
 	const hasAppExtensions = options.appExtensions.length > 0;
 
