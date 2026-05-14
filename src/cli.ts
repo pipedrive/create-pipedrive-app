@@ -1,5 +1,4 @@
 import * as clack from '@clack/prompts';
-import { spawn } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -10,7 +9,6 @@ import { nodeGenerator } from './generators/node/index.js';
 
 interface NextStepOptions {
 	nameOrPath: string;
-	installDeps: boolean;
 }
 
 export function nextStepLines(options: NextStepOptions): string[] {
@@ -18,10 +16,8 @@ export function nextStepLines(options: NextStepOptions): string[] {
 		`cd ${options.nameOrPath}`,
 		'cp .env.example .env',
 		'# fill in PIPEDRIVE_CLIENT_ID and PIPEDRIVE_CLIENT_SECRET',
+		'docker compose up',
 	];
-
-	if (!options.installDeps) steps.push('npm install');
-	steps.push('docker compose up');
 
 	return ['', 'Next steps:', ...steps.map((s) => `  ${s}`)];
 }
@@ -67,23 +63,7 @@ async function main(): Promise<void> {
 
 	clack.outro(`✓ Created ${projectName}`);
 
-	const installDeps = await clack.confirm({ message: 'Install dependencies now?' });
-	if (clack.isCancel(installDeps)) process.exit(0);
-
-	if (installDeps) {
-		const spinner = clack.spinner();
-		spinner.start('Installing dependencies');
-		const ok = await new Promise<boolean>((resolve) => {
-			const child = spawn('npm', ['install'], { cwd: outputDir, stdio: 'ignore' });
-			child.on('close', (code) => resolve(code === 0));
-		});
-		spinner.stop(ok ? 'Dependencies installed' : 'npm install failed — run it manually');
-	}
-
-	printNextSteps({
-		nameOrPath,
-		installDeps: Boolean(installDeps),
-	});
+	printNextSteps({ nameOrPath });
 }
 
 if (isCliEntrypoint(import.meta.url, process.argv[1])) {

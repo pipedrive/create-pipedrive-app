@@ -3,18 +3,8 @@ import { pathToFileURL } from 'node:url';
 import { isCliEntrypoint, nextStepLines } from './cli.js';
 
 describe('nextStepLines', () => {
-	it('includes npm install when deps not installed', () => {
-		expect(nextStepLines({ nameOrPath: 'test-app', installDeps: false }).join('\n')).toBe(`
-Next steps:
-  cd test-app
-  cp .env.example .env
-  # fill in PIPEDRIVE_CLIENT_ID and PIPEDRIVE_CLIENT_SECRET
-  npm install
-  docker compose up`);
-	});
-
-	it('omits npm install when deps already installed', () => {
-		expect(nextStepLines({ nameOrPath: 'test-app', installDeps: true }).join('\n')).toBe(`
+	it('outputs the four next steps', () => {
+		expect(nextStepLines({ nameOrPath: 'test-app' }).join('\n')).toBe(`
 Next steps:
   cd test-app
   cp .env.example .env
