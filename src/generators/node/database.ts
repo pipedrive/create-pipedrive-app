@@ -445,12 +445,10 @@ async function generateDockerCompose(outputDir: string, options: GeneratorOption
 			    environment:
 			      DATABASE_URL: file:/app/data/data.db
 			    volumes:
+			      - ./src:/app/src
 			      - sqlite_data:/app/data
 			    develop:
 			      watch:
-			        - action: sync
-			          path: ./src
-			          target: /app/src
 			        - action: rebuild
 			          path: package.json
 
@@ -468,14 +466,13 @@ async function generateDockerCompose(outputDir: string, options: GeneratorOption
 			    env_file: .env
 			    environment:
 			      DATABASE_URL: postgresql://app:app@db:5432/${projectName}
+			    volumes:
+			      - ./src:/app/src
 			    depends_on:
 			      db:
 			        condition: service_healthy
 			    develop:
 			      watch:
-			        - action: sync
-			          path: ./src
-			          target: /app/src
 			        - action: rebuild
 			          path: package.json
 
@@ -509,14 +506,13 @@ async function generateDockerCompose(outputDir: string, options: GeneratorOption
 			    env_file: .env
 			    environment:
 			      DATABASE_URL: mysql://app:app@db:3306/${projectName}
+			    volumes:
+			      - ./src:/app/src
 			    depends_on:
 			      db:
 			        condition: service_healthy
 			    develop:
 			      watch:
-			        - action: sync
-			          path: ./src
-			          target: /app/src
 			        - action: rebuild
 			          path: package.json
 
@@ -793,7 +789,7 @@ async function generateDockerfile(outputDir: string): Promise<void> {
 	await writeFile(
 		join(outputDir, 'Dockerfile'),
 		dedent`
-			FROM node:22-alpine
+			FROM node:24-alpine
 			WORKDIR /app
 			COPY package*.json ./
 			RUN npm install

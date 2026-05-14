@@ -230,7 +230,8 @@ describe('generateDatabase — docker-compose.yml', () => {
 		expect(content).toContain('healthcheck');
 		expect(content).toContain('backend');
 		expect(content).toContain('tsx watch src/index.ts');
-		expect(content).toContain('action: sync');
+		expect(content).toContain('./src:/app/src');
+		expect(content).toContain('action: rebuild');
 	});
 
 	it('generates docker-compose.yml for mysql with backend and healthcheck', async () => {

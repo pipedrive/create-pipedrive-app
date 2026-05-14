@@ -62,14 +62,17 @@ async function generateOauthRouter(outputDir: string): Promise<void> {
 			import { upsertToken } from '../database/tokenRepository.js';
 			import { createState, verifyState } from './state.js';
 
-			const oauth2 = new v2.OAuth2Configuration({
-				clientId: process.env.PIPEDRIVE_CLIENT_ID ?? '',
-				clientSecret: process.env.PIPEDRIVE_CLIENT_SECRET ?? '',
-				redirectUri: process.env.PIPEDRIVE_REDIRECT_URI ?? '',
-			});
+			function createOauth2() {
+				return new v2.OAuth2Configuration({
+					clientId: process.env.PIPEDRIVE_CLIENT_ID ?? '',
+					clientSecret: process.env.PIPEDRIVE_CLIENT_SECRET ?? '',
+					redirectUri: process.env.PIPEDRIVE_REDIRECT_URI ?? '',
+				});
+			}
 
 			export function createAuthRedirect(): string {
 				const state = createState();
+				const oauth2 = createOauth2();
 				return \`\${oauth2.authorizationUrl}&state=\${encodeURIComponent(state)}\`;
 			}
 
@@ -89,6 +92,7 @@ async function generateOauthRouter(outputDir: string): Promise<void> {
 				}
 
 				try {
+					const oauth2 = createOauth2();
 					const token = await oauth2.authorize(code);
 
 					if (!token.api_domain) throw new Error('Missing api_domain in token response');
