@@ -234,7 +234,12 @@ function readmeContent(options: GeneratorOptions): string {
 	const setupCommands =
 		options.appExtensions.length > 0
 			? ['cp .env.example .env', 'docker-compose up --watch']
-			: ['cp .env.example .env', ...(needsDocker ? ['docker-compose up -d db'] : []), 'npm install', 'npm run dev'];
+			: [
+					'cp .env.example .env',
+					...(needsDocker ? ['docker-compose up -d db'] : []),
+					'npm install',
+					'npm run dev',
+				];
 	const appExtensionsSection =
 		options.appExtensions.length > 0
 			? dedent`
