@@ -13,6 +13,7 @@ export const nodeGenerator: Generator = {
 			.addPackageJson()
 			.addTsConfig()
 			.addEnvExample()
+			.addReadme()
 			.build();
 	},
 };

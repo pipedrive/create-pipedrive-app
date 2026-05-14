@@ -8,6 +8,7 @@ import { RouterMountBuilder } from '../../utils/templates.js';
 export async function generateApp(outputDir: string, options: GeneratorOptions): Promise<void> {
 	const hasPanel = options.appExtensions.includes('custom-panel');
 	const hasModal = options.appExtensions.includes('custom-modal');
+	const hasAppExtensions = hasPanel || hasModal;
 
 	const mounts = new RouterMountBuilder()
 		.add('/oauth', 'oauthRouter')
@@ -42,6 +43,7 @@ export async function generateApp(outputDir: string, options: GeneratorOptions):
 	const content = new SourceFileBuilder()
 		.importDefault('express', 'express')
 		.import('express', ['NextFunction', 'Request', 'Response'])
+		.importIf(hasAppExtensions, 'node:path', ['join'])
 		.importDefault('./oauth/index.js', 'oauthRouter')
 		.import('./oauth/index.js', ['createAuthRedirect'])
 		.import('./pipedrive/client.js', ['getClient'])
@@ -52,6 +54,11 @@ export async function generateApp(outputDir: string, options: GeneratorOptions):
 		.importDefaultIf(hasModal, './app-extensions/modal/index.js', 'modalRouter')
 		.addBlock('const app = express();')
 		.addBlock(rootRoute)
+		.addBlockIf(
+			hasAppExtensions,
+			"const appExtensionAssetsPath = join(process.cwd(), 'frontend/app-extension-ui/dist/assets');",
+		)
+		.addBlockIf(hasAppExtensions, "app.use('/extensions/assets', express.static(appExtensionAssetsPath));")
 		.addBlock(mounts)
 		.addBlock(errorHandler)
 		.exportDefault('app')

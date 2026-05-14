@@ -34,6 +34,11 @@ const sqliteOptions: GeneratorOptions = {
 	appExtensions: [],
 };
 
+const sqliteAppExtensionOptions: GeneratorOptions = {
+	...sqliteOptions,
+	appExtensions: ['custom-panel'],
+};
+
 describe('generateDatabase — schema.ts', () => {
 	it('generates src/database/schema.ts for postgres', async () => {
 		const { generateDatabase } = await import('./database.js');
@@ -221,6 +226,7 @@ describe('generateDatabase — docker-compose.yml', () => {
 		expect(content).toContain('postgres:16');
 		expect(content).toContain('db_data:/var/lib/postgresql/data');
 		expect(content).toContain('pg_isready');
+		expect(content).toContain("'-d', 'test-app'");
 		expect(content).toContain('healthcheck');
 		expect(content).toContain('backend');
 		expect(content).toContain('tsx watch src/index.ts');
@@ -303,5 +309,81 @@ describe('generateDatabase — tokenRepository.ts', () => {
 		await generateDatabase(tmpDir, sqliteOptions);
 		const content = await read('src/database/tokenRepository.ts');
 		expect(content).toContain('onConflictDoUpdate');
+	});
+
+	it('generates Compose Watch frontend service when App Extensions are selected', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, sqliteAppExtensionOptions);
+		expect(await exists(join(tmpDir, 'docker-compose.yml'))).toBe(true);
+		expect(await exists(join(tmpDir, 'Dockerfile.app'))).toBe(true);
+		expect(await exists(join(tmpDir, 'Dockerfile.app-extension-ui'))).toBe(true);
+		expect(await exists(join(tmpDir, '.dockerignore'))).toBe(true);
+
+		const compose = await read('docker-compose.yml');
+		expect(compose).toContain('app:');
+		expect(compose).toContain('dockerfile: Dockerfile.app');
+		expect(compose).toContain('user: root');
+		expect(compose).toContain(
+			'command: sh -c "chown -R node:node /app/node_modules && su-exec node sh -c \'echo Installing dependencies... && npm install --no-package-lock --no-audit --no-fund --loglevel=error && ./node_modules/.bin/tsx watch src/index.ts\'"',
+		);
+		expect(compose).toContain("'3000:3000'");
+		expect(compose).toContain('./package.json:/app/package.json:ro');
+		expect(compose).toContain('app_node_modules:/app/node_modules');
+		expect(compose).toContain('DATABASE_URL: file:./data.db');
+		expect(compose).toContain('path: ./src');
+		expect(compose).toContain('target: /app/src');
+		expect(compose).toContain('action: sync+restart');
+		expect(compose).toContain('path: ./tsconfig.json');
+		expect(compose).toContain('app-extension-ui:');
+		expect(compose).toContain('dockerfile: Dockerfile.app-extension-ui');
+		expect(compose).toContain(
+			'command: sh -c "chown -R node:node /app/node_modules && su-exec node sh -c \'echo Installing dependencies... && npm install --no-package-lock --no-audit --no-fund --loglevel=error && npm run dev:frontend\'"',
+		);
+		expect(compose).toContain("'5173:5173'");
+		expect(compose).toContain('./package.json:/app/package.json:ro');
+		expect(compose).toContain('app_extension_ui_node_modules:/app/node_modules');
+		expect(compose).toContain('develop:');
+		expect(compose).toContain('watch:');
+		expect(compose).toContain('action: sync');
+		expect(compose).toContain('path: ./frontend/app-extension-ui');
+		expect(compose).toContain('target: /app/frontend/app-extension-ui');
+		expect(compose).toContain('initial_sync: true');
+		expect(compose).toContain('action: rebuild');
+		expect(compose).toContain('path: ./package.json');
+		expect(compose).toContain('app_node_modules:');
+		expect(compose).toContain('app_extension_ui_node_modules:');
+
+		const appDockerfile = await read('Dockerfile.app');
+		expect(appDockerfile).toContain('FROM node:24-alpine');
+		expect(appDockerfile).toContain('ENV NPM_CONFIG_USERCONFIG=/tmp/.npmrc');
+		expect(appDockerfile).toContain('RUN mkdir -p /app/node_modules && chown -R node:node /app');
+		expect(appDockerfile).toContain('npm config set registry https://registry.npmjs.org/');
+		expect(appDockerfile).toContain('COPY --chown=node:node package.json ./');
+		expect(appDockerfile).toContain('COPY --chown=node:node src ./src');
+		expect(appDockerfile).not.toContain('RUN npm install');
+		expect(appDockerfile).toContain('CMD ["npm", "run", "dev"]');
+
+		const dockerfile = await read('Dockerfile.app-extension-ui');
+		expect(dockerfile).toContain('FROM node:24-alpine');
+		expect(dockerfile).toContain('ENV NPM_CONFIG_USERCONFIG=/tmp/.npmrc');
+		expect(dockerfile).toContain('RUN mkdir -p /app/node_modules && chown -R node:node /app');
+		expect(dockerfile).toContain('npm config set registry https://registry.npmjs.org/');
+		expect(dockerfile).toContain('COPY --chown=node:node package.json ./');
+		expect(dockerfile).not.toContain('RUN npm install');
+		expect(dockerfile).toContain('CMD ["npm", "run", "dev:frontend"]');
+
+		const dockerignore = await read('.dockerignore');
+		expect(dockerignore).toContain('node_modules');
+		expect(dockerignore).toContain('frontend/app-extension-ui/dist');
+	});
+
+	it('connects the backend container to the Compose database service', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, { ...pgOptions, appExtensions: ['custom-panel'] });
+
+		const compose = await read('docker-compose.yml');
+		expect(compose).toContain('DATABASE_URL: postgresql://app:app@db:5432/test-app');
+		expect(compose).toContain('depends_on:');
+		expect(compose).toContain('condition: service_healthy');
 	});
 });

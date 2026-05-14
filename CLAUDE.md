@@ -17,6 +17,12 @@ npm test            # Vitest suite
 npm run generate        # generate test project in apps/test-app/ (gitignored)
 ```
 
+Run a single test file:
+
+```bash
+npx vitest run src/generators/node/app.test.ts
+```
+
 ## Architecture
 
 The tool is **CLI-first**, with an **AI plugin layer** built on top:
@@ -29,46 +35,59 @@ The tool is **CLI-first**, with an **AI plugin layer** built on top:
 The CLI asks for:
 - Backend: Node.js/Express, Node.js/Fastify, or PHP/Laravel
 - Database: Postgres, MySQL, or SQLite
-- App Extensions frontend: React, Vanilla JS, or none
+- App Extensions frontend: multi-select of `custom-panel` and/or `custom-modal` (or neither)
 - Webhooks: Yes/No
+
+`GeneratorOptions.appExtensions` is `AppExtensionType[]` where `AppExtensionType = 'custom-panel' | 'custom-modal'`. Check membership with `.includes('custom-panel')`, not boolean equality.
 
 ### Generator flow
 
 ```
 cli.ts (collects prompts)
   → prompts/ (projectName, database, appExtensions, webhooks)
-    → nodeGenerator (orchestrates 5 sub-generators)
+    → nodeGenerator (orchestrates sub-generators via NodeProjectBuilder)
       → oauth.ts, database.ts, app.ts
-      → webhooks.ts (conditional), appExtensions.ts (conditional)
+      → webhooks.ts (conditional)
+      → appExtensions.ts (conditional)
+          → appExtensions/panel.ts   — backend router + React snippet contributions
+          → appExtensions/modal.ts   — backend router + React snippet contributions
+          → appExtensions/frontend.ts — Vite + React frontend (index.html, App.tsx, etc.)
+          → appExtensions/sdk.ts     — usePipedriveSdk hook wrapper
+          → appExtensions/router.ts  — shared Express static-file router
       → serverEntry, packageJson, tsConfig, envExample, dockerCompose
 ```
 
-**There is no template directory.** Generators build file content as strings using `dedent()`, with conditional string interpolation for optional features (webhooks, app extension types). The `src/utils/writeFile.ts` utility writes files, creates parent directories, and auto-formats output with Prettier — generated code is formatted automatically without an explicit format step.
-
-`app.ts` is the main example of the conditional pattern: imports and router mounts are included only when the relevant features are enabled, and the result is written once.
+**There is no template directory.** Generators build file content as strings using `dedent()`, with conditional string interpolation for optional features. The `src/utils/writeFile.ts` utility writes files, creates parent directories, and auto-formats output with Prettier — generated code is formatted automatically without an explicit format step.
 
 ### Generated project structure
 
 ```
 <project-name>/
-  backend/
-    oauth/         # Authorization redirect, callback, token exchange, refresh, state validation
-    pipedrive-client/  # Official API client wrapper with preconfigured auth
-    database/      # Tenant/account mapping, tokens, scopes, installation status
-    webhooks/      # Optional webhook handlers
+  src/
+    app.ts              # Express app, mounts all routers
+    index.ts            # Server entry with DB retry loop
+    oauth/              # Authorization redirect, callback, token exchange, refresh
+    pipedrive-client/   # Official API client wrapper
+    database/           # Drizzle schema, migrations, db setup
+    webhooks/           # Optional webhook handlers
+    app-extensions/
+      panel/            # Express router serving built frontend (custom-panel)
+      modal/            # Express router serving built frontend (custom-modal)
   frontend/
-    app-extension-ui/  # Optional: React or Vanilla iframe UI with App Extensions SDK
+    app-extension-ui/   # Vite + React iframe UI (only when App Extensions selected)
   .env.example
   README.md
   docker-compose.yml
   marketplace-checklist.md
 ```
 
-## Adding features
+## App Extensions pattern
 
-- **New prompt**: add `src/prompts/<feature>.ts` + `.test.ts`, export from `cli.ts`
-- **New generator**: add `src/generators/node/<feature>.ts` + `.test.ts`, call from `nodeGenerator`
-- **Modify generated scaffold**: edit template strings in the corresponding generator file
+Each extension type (panel, modal) contributes a `ReactSnippetContribution` — an object with `{ sdkImports, handlers, buttons }` — that gets merged into the generated `App.tsx`. This lets panel.ts and modal.ts independently declare what SDK imports and JSX they need without knowing about each other.
+
+When App Extensions are enabled, `docker-compose up --watch` starts both the Express backend and the Vite dev server in containers with Compose Watch for live code sync. The Vite server must be exposed via a public HTTPS tunnel and configured in Developer Hub as the iframe URL.
+
+The backend serves the built frontend at `/extensions/panel` and `/extensions/modal` via Express static routing (using the shared `routerContent()` from `appExtensions/router.ts`). In production, `npm run build` builds both backend TypeScript and the Vite bundle.
 
 ## Builder Pattern
 
@@ -96,18 +115,12 @@ The scaffold generator uses `NodeProjectBuilder` + `BuildStep` (`src/generators/
 - Use `RouterMountBuilder` (`src/utils/templates.ts`) to accumulate `app.use()` calls conditionally
 - Use plain `dedent` for static content (YAML, JSON, `.env`, SQL)
 
-## MVP Scope
+## Adding features
 
-The initial implementation targets:
-- **Runtime**: Node.js + TypeScript
-- **Backend**: Express or Fastify
-- **Database**: Postgres via Docker Compose
-- **Auth**: Full OAuth 2.0 install/callback/token-refresh flow
-- **API client**: Pipedrive Node.js client wrapper
-- **Frontend** (optional): React App Extensions UI
-- Outputs `.env.example` and a Marketplace readiness checklist
-
-PHP and MySQL/SQLite backends come after MVP. The PHP generator exists but throws "not yet implemented". App Extensions frontend is prompted but not yet generated.
+- **New prompt**: add `src/prompts/<feature>.ts` + `.test.ts`, export from `cli.ts`
+- **New generator**: add `src/generators/node/<feature>.ts` + `.test.ts`, call from `nodeGenerator`
+- **New App Extension type**: add a file under `src/generators/node/appExtensions/` that exports an `async generate*` function and a `*ReactSnippets()` function returning `ReactSnippetContribution`, then wire it in `appExtensions.ts` and `frontend.ts`
+- **Modify generated scaffold**: edit template strings in the corresponding generator file
 
 ## Core Modules
 
@@ -115,26 +128,22 @@ PHP and MySQL/SQLite backends come after MVP. The PHP generator exists but throw
 Full OAuth 2.0: app registration guidance, authorization redirect, callback handling, token exchange, token refresh, state validation.
 
 ### Database (`backend/database/`)
-Uses **Drizzle ORM** (`drizzle-orm` + `drizzle-kit`) for schema definition and migrations. Drizzle is chosen because it supports Postgres, MySQL, and SQLite with the same TypeScript API — matching the three database options the CLI offers — and produces readable schema files with no codegen step.
+Uses **Drizzle ORM** (`drizzle-orm` + `drizzle-kit`) for schema definition and migrations. Supports Postgres, MySQL, and SQLite with the same TypeScript API.
 
 Structure:
 - `schema.ts` — Drizzle table definitions (tenants, oauth_tokens, installations)
 - `migrations/` — SQL migration files managed by `drizzle-kit`
-- `db.ts` — driver setup (selects `postgres-js`, `mysql2`, or `better-sqlite3` based on the chosen DB)
+- `db.ts` — driver setup (selects `postgres-js`, `mysql2`, or `better-sqlite3` based on chosen DB)
 
 ### Pipedrive API client (`backend/pipedrive-client/`)
 Wrapper around the official Pipedrive Node.js client with preconfigured authentication and helpers for common API calls.
 
 ### App Extensions frontend (`frontend/app-extension-ui/`)
-Only generated when the user opts in. Iframe-based UI using the App Extensions SDK, supporting: initialization, resizing, modals, notifications/snackbars, theme handling.
+Generated when the user selects `custom-panel` and/or `custom-modal`. Iframe-based React + Vite UI using the App Extensions SDK (`usePipedriveSdk` hook), with: SDK initialization, theme handling, resize, snackbar, confirmation dialog, signed token, and extension-type-specific actions (open modal from panel, close modal).
 
 ## Tests
 
-Vitest. Tests generate files into a `tmpdir()/cpa-app-test` directory, read them back to verify content, and clean up in `afterEach`. Run a single test file:
-
-```bash
-npx vitest run src/generators/node/app.test.ts
-```
+Vitest. Tests generate files into a `tmpdir()/cpa-app-test` directory, read them back to verify content, and clean up in `afterEach`.
 
 ## AI Plugin Commands (future layer)
 

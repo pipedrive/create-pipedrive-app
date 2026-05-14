@@ -57,6 +57,8 @@ describe('generateApp', () => {
 			appExtensions: ['custom-panel'],
 		});
 		expect(content).toContain("from './app-extensions/panel/index.js'");
+		expect(content).toContain("import { join } from 'node:path';");
+		expect(content).toContain("app.use('/extensions/assets', express.static(appExtensionAssetsPath));");
 		expect(content).toContain("app.use('/extensions/panel'");
 	});
 
@@ -77,5 +79,6 @@ describe('generateApp', () => {
 			appExtensions: [],
 		});
 		expect(content).not.toContain('./app-extensions');
+		expect(content).not.toContain('/extensions/assets');
 	});
 });
