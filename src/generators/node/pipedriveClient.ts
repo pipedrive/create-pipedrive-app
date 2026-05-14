@@ -22,7 +22,7 @@ export async function generatePipedriveClient(outputDir: string, _options: Gener
 				// For per-user access, add userId as a second parameter,
 				// call getToken(companyId, userId) instead, and pass userId directly to upsertToken.
 				oauth2.onTokenUpdate = (token) => {
-					if (stored) upsertToken(stored.companyId, stored.userId, token);
+					if (stored) upsertToken(stored.companyId, stored.userId, token).catch((err) => console.error('Failed to persist token:', err));
 				};
 
 				const accessToken = oauth2.getAccessToken;
