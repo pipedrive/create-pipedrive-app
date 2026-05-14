@@ -1,7 +1,40 @@
 import dedent from 'dedent';
 import { join } from 'path';
+import yaml from 'yaml';
 import { writeFile } from '../../utils/writeFile.js';
 import type { GeneratorOptions } from '../interface.js';
+
+interface ComposeService {
+	build?: string | { context: string; dockerfile: string };
+	image?: string;
+	command?: string;
+	user?: string;
+	env_file?: string | string[];
+	environment?: Record<string, string>;
+	ports?: string[];
+	volumes?: string[];
+	depends_on?: Record<string, { condition: string }>;
+	healthcheck?: {
+		test: string[];
+		interval: string;
+		timeout: string;
+		retries: number;
+	};
+	develop?: {
+		watch: {
+			action: string;
+			path: string;
+			target?: string;
+			initial_sync?: boolean;
+			ignore?: string[];
+		}[];
+	};
+}
+
+interface ComposeConfig {
+	services: Record<string, ComposeService>;
+	volumes?: Record<string, null>;
+}
 
 export async function generateDatabase(outputDir: string, options: GeneratorOptions): Promise<void> {
 	await generateSchema(outputDir, options);
@@ -424,300 +457,192 @@ async function generateMigrationJournal(outputDir: string, options: GeneratorOpt
 	await writeFile(join(outputDir, 'src/database/migrations/meta/_journal.json'), JSON.stringify(journal, null, 2));
 }
 
+function buildBackendService(options: GeneratorOptions): { name: string; service: ComposeService } {
+	const { database, appExtensions, projectName } = options;
+	const hasAppExt = appExtensions.length > 0;
+	const isSqlite = database === 'sqlite';
+	const hasDatabaseService = database === 'postgres' || database === 'mysql';
+
+	if (hasAppExt) {
+		const databaseUrl =
+			database === 'postgres'
+				? `postgresql://app:app@db:5432/${projectName}`
+				: database === 'mysql'
+					? `mysql://app:app@db:3306/${projectName}`
+					: 'file:./data.db';
+
+		const service: ComposeService = {
+			build: { context: '.', dockerfile: 'Dockerfile.app' },
+			user: 'root',
+			command: nodeVolumeCommand(`${quietInstallCommand()} && ./node_modules/.bin/tsx watch src/index.ts`),
+			env_file: ['.env'],
+			environment: { DATABASE_URL: databaseUrl, CHOKIDAR_USEPOLLING: 'true' },
+			ports: ['3000:3000'],
+			volumes: ['./package.json:/app/package.json:ro', 'app_node_modules:/app/node_modules'],
+			...(hasDatabaseService ? { depends_on: { db: { condition: 'service_healthy' } } } : {}),
+			develop: {
+				watch: [
+					{ action: 'sync', path: './src', target: '/app/src', initial_sync: true },
+					{ action: 'sync+restart', path: './tsconfig.json', target: '/app/tsconfig.json' },
+					{ action: 'rebuild', path: './package.json' },
+				],
+			},
+		};
+		return { name: 'app', service };
+	}
+
+	const databaseUrl = isSqlite
+		? 'file:/app/data/data.db'
+		: database === 'postgres'
+			? `postgresql://app:app@db:5432/${projectName}`
+			: `mysql://app:app@db:3306/${projectName}`;
+
+	const service: ComposeService = {
+		build: '.',
+		command: 'node_modules/.bin/tsx watch src/index.ts',
+		ports: ['${PORT:-3000}:3000'],
+		env_file: '.env',
+		environment: { DATABASE_URL: databaseUrl },
+		volumes: ['./src:/app/src', ...(isSqlite ? ['sqlite_data:/app/data'] : [])],
+		...(hasDatabaseService ? { depends_on: { db: { condition: 'service_healthy' } } } : {}),
+		develop: {
+			watch: [{ action: 'rebuild', path: 'package.json' }],
+		},
+	};
+	return { name: 'backend', service };
+}
+
+function buildDatabaseService(options: GeneratorOptions): {
+	name: string;
+	service: ComposeService;
+	volumeName: string;
+} {
+	const { database, projectName, appExtensions } = options;
+	const hasAppExt = appExtensions.length > 0;
+
+	if (database === 'postgres') {
+		const volumeName = hasAppExt ? 'postgres_data' : 'db_data';
+		return {
+			name: 'db',
+			volumeName,
+			service: {
+				image: 'postgres:16',
+				environment: {
+					POSTGRES_USER: 'app',
+					POSTGRES_PASSWORD: 'app',
+					POSTGRES_DB: projectName,
+				},
+				ports: ['5432:5432'],
+				volumes: [`${volumeName}:/var/lib/postgresql/data`],
+				healthcheck: {
+					test: ['CMD', 'pg_isready', '-U', 'app', '-d', projectName],
+					interval: '5s',
+					timeout: '5s',
+					retries: 5,
+				},
+			},
+		};
+	}
+
+	const volumeName = hasAppExt ? 'mysql_data' : 'db_data';
+	return {
+		name: 'db',
+		volumeName,
+		service: {
+			image: 'mysql:8',
+			environment: {
+				MYSQL_ROOT_PASSWORD: 'app',
+				MYSQL_DATABASE: projectName,
+				MYSQL_USER: 'app',
+				MYSQL_PASSWORD: 'app',
+			},
+			ports: ['127.0.0.1:3307:3306'],
+			volumes: [`${volumeName}:/var/lib/mysql`],
+			healthcheck: {
+				test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'app', '--password=app'],
+				interval: '5s',
+				timeout: '5s',
+				retries: 5,
+			},
+		},
+	};
+}
+
+function buildAppExtensionUiService(): ComposeService {
+	return {
+		build: { context: '.', dockerfile: 'Dockerfile.app-extension-ui' },
+		user: 'root',
+		command: nodeVolumeCommand(`${quietInstallCommand()} && npm run dev:frontend`),
+		environment: { CHOKIDAR_USEPOLLING: 'true' },
+		ports: ['5173:5173'],
+		volumes: ['./package.json:/app/package.json:ro', 'app_extension_ui_node_modules:/app/node_modules'],
+		develop: {
+			watch: [
+				{
+					action: 'sync',
+					path: './frontend/app-extension-ui',
+					target: '/app/frontend/app-extension-ui',
+					initial_sync: true,
+					ignore: ['node_modules/', 'dist/'],
+				},
+				{ action: 'rebuild', path: './package.json' },
+			],
+		},
+	};
+}
+
+class ComposeBuilder {
+	private services: Record<string, ComposeService> = {};
+	private volumes: Record<string, null> = {};
+
+	addBackendService(options: GeneratorOptions): this {
+		const { name, service } = buildBackendService(options);
+		this.services[name] = service;
+		if (options.database === 'sqlite' && options.appExtensions.length === 0) {
+			this.volumes['sqlite_data'] = null;
+		}
+		if (options.appExtensions.length > 0) {
+			this.volumes['app_node_modules'] = null;
+		}
+		return this;
+	}
+
+	addDatabaseService(options: GeneratorOptions): this {
+		const { name, service, volumeName } = buildDatabaseService(options);
+		this.services[name] = service;
+		this.volumes[volumeName] = null;
+		return this;
+	}
+
+	addAppExtensionUiService(): this {
+		this.services['app-extension-ui'] = buildAppExtensionUiService();
+		this.volumes['app_extension_ui_node_modules'] = null;
+		return this;
+	}
+
+	when(condition: boolean, fn: (b: this) => void): this {
+		if (condition) fn(this);
+		return this;
+	}
+
+	build(): ComposeConfig {
+		const config: ComposeConfig = { services: this.services };
+		if (Object.keys(this.volumes).length > 0) config.volumes = this.volumes;
+		return config;
+	}
+}
+
 async function generateDockerCompose(outputDir: string, options: GeneratorOptions): Promise<void> {
-	const hasAppExtensions = options.appExtensions.length > 0;
+	const { database, appExtensions } = options;
+	const hasDatabaseService = database === 'postgres' || database === 'mysql';
 
-	if (hasAppExtensions) {
-		await writeFile(join(outputDir, 'docker-compose.yml'), appExtensionsComposeContent(options));
-		return;
-	}
+	const config = new ComposeBuilder()
+		.addBackendService(options)
+		.when(hasDatabaseService, (b) => b.addDatabaseService(options))
+		.when(appExtensions.length > 0, (b) => b.addAppExtensionUiService())
+		.build();
 
-	const { database, projectName } = options;
-	let content: string;
-
-	if (database === 'sqlite') {
-		content = dedent`
-			services:
-			  backend:
-			    build: .
-			    command: node_modules/.bin/tsx watch src/index.ts
-			    ports:
-			      - '\${PORT:-3000}:3000'
-			    env_file: .env
-			    environment:
-			      DATABASE_URL: file:/app/data/data.db
-			    volumes:
-			      - ./src:/app/src
-			      - sqlite_data:/app/data
-			    develop:
-			      watch:
-			        - action: rebuild
-			          path: package.json
-
-			volumes:
-			  sqlite_data:
-		`;
-	} else if (database === 'postgres') {
-		content = dedent`
-			services:
-			  backend:
-			    build: .
-			    command: node_modules/.bin/tsx watch src/index.ts
-			    ports:
-			      - '\${PORT:-3000}:3000'
-			    env_file: .env
-			    environment:
-			      DATABASE_URL: postgresql://app:app@db:5432/${projectName}
-			    volumes:
-			      - ./src:/app/src
-			    depends_on:
-			      db:
-			        condition: service_healthy
-			    develop:
-			      watch:
-			        - action: rebuild
-			          path: package.json
-
-			  db:
-			    image: postgres:16
-			    environment:
-			      POSTGRES_USER: app
-			      POSTGRES_PASSWORD: app
-			      POSTGRES_DB: ${projectName}
-			    ports:
-			      - '5432:5432'
-			    volumes:
-			      - db_data:/var/lib/postgresql/data
-			    healthcheck:
-			      test: ['CMD', 'pg_isready', '-U', 'app', '-d', '${projectName}']
-			      interval: 5s
-			      timeout: 5s
-			      retries: 5
-
-			volumes:
-			  db_data:
-		`;
-	} else {
-		content = dedent`
-			services:
-			  backend:
-			    build: .
-			    command: node_modules/.bin/tsx watch src/index.ts
-			    ports:
-			      - '\${PORT:-3000}:3000'
-			    env_file: .env
-			    environment:
-			      DATABASE_URL: mysql://app:app@db:3306/${projectName}
-			    volumes:
-			      - ./src:/app/src
-			    depends_on:
-			      db:
-			        condition: service_healthy
-			    develop:
-			      watch:
-			        - action: rebuild
-			          path: package.json
-
-			  db:
-			    image: mysql:8
-			    environment:
-			      MYSQL_ROOT_PASSWORD: app
-			      MYSQL_DATABASE: ${projectName}
-			      MYSQL_USER: app
-			      MYSQL_PASSWORD: app
-			    ports:
-			      - '127.0.0.1:3307:3306'
-			    volumes:
-			      - db_data:/var/lib/mysql
-			    healthcheck:
-			      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'app', '--password=app']
-			      interval: 5s
-			      timeout: 5s
-			      retries: 5
-
-			volumes:
-			  db_data:
-		`;
-	}
-
-	await writeFile(join(outputDir, 'docker-compose.yml'), content);
-}
-
-function appExtensionsComposeContent(options: GeneratorOptions): string {
-	const services: string[] = [];
-	const volumes: string[] = [];
-	const hasDatabaseService = options.database === 'postgres' || options.database === 'mysql';
-
-	if (options.database === 'postgres') {
-		services.push(postgresComposeService(options.projectName));
-		volumes.push('postgres_data:');
-	}
-
-	if (options.database === 'mysql') {
-		services.push(mysqlComposeService(options.projectName));
-		volumes.push('mysql_data:');
-	}
-
-	services.push(appComposeService(options, hasDatabaseService));
-	services.push(appExtensionUiComposeService());
-	volumes.push('app_node_modules:', 'app_extension_ui_node_modules:');
-
-	const lines = [
-		'services:',
-		...services
-			.map((service) => indent(service, 2))
-			.join('\n\n')
-			.split('\n'),
-	];
-
-	if (volumes.length > 0) {
-		lines.push('', 'volumes:', ...volumes.map((volume) => indent(volume, 2)));
-	}
-
-	return `${lines.join('\n')}\n`;
-}
-
-function appComposeService(options: GeneratorOptions, hasDatabaseService: boolean): string {
-	const databaseUrlOverride = composeDatabaseUrlOverride(options);
-
-	const main = dedent`
-		app:
-		  build:
-		    context: .
-		    dockerfile: Dockerfile.app
-		  user: root
-		  command: ${nodeVolumeCommand(`${quietInstallCommand()} && ./node_modules/.bin/tsx watch src/index.ts`)}
-		  env_file:
-		    - .env
-		  environment:
-		    ${databaseUrlOverride}
-		    CHOKIDAR_USEPOLLING: 'true'
-		  ports:
-		    - '3000:3000'
-		  volumes:
-		    - ./package.json:/app/package.json:ro
-		    - app_node_modules:/app/node_modules
-	`;
-
-	const dependsOn = hasDatabaseService
-		? indent(
-				dedent`
-					depends_on:
-					  db:
-					    condition: service_healthy
-				`,
-				2,
-			)
-		: null;
-
-	const develop = indent(
-		dedent`
-			develop:
-			  watch:
-			    - action: sync
-			      path: ./src
-			      target: /app/src
-			      initial_sync: true
-			    - action: sync+restart
-			      path: ./tsconfig.json
-			      target: /app/tsconfig.json
-			    - action: rebuild
-			      path: ./package.json
-		`,
-		2,
-	);
-
-	return [main, ...(dependsOn ? [dependsOn] : []), develop].join('\n');
-}
-
-function composeDatabaseUrlOverride(options: GeneratorOptions): string {
-	if (options.database === 'postgres') {
-		return `DATABASE_URL: postgresql://app:app@db:5432/${options.projectName}`;
-	}
-
-	if (options.database === 'mysql') {
-		return `DATABASE_URL: mysql://app:app@db:3306/${options.projectName}`;
-	}
-
-	return 'DATABASE_URL: file:./data.db';
-}
-
-function postgresComposeService(projectName: string): string {
-	return dedent`
-		db:
-		  image: postgres:16
-		  environment:
-		    POSTGRES_USER: app
-		    POSTGRES_PASSWORD: app
-		    POSTGRES_DB: ${projectName}
-		  ports:
-		    - '5432:5432'
-		  volumes:
-		    - postgres_data:/var/lib/postgresql/data
-		  healthcheck:
-		    test: ['CMD', 'pg_isready', '-U', 'app', '-d', '${projectName}']
-		    interval: 5s
-		    timeout: 5s
-		    retries: 5
-	`;
-}
-
-function mysqlComposeService(projectName: string): string {
-	return dedent`
-		db:
-		  image: mysql:8
-		  environment:
-		    MYSQL_ROOT_PASSWORD: app
-		    MYSQL_DATABASE: ${projectName}
-		    MYSQL_USER: app
-		    MYSQL_PASSWORD: app
-		  ports:
-		    - '127.0.0.1:3307:3306'
-		  volumes:
-		    - mysql_data:/var/lib/mysql
-		  healthcheck:
-		    test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'app', '--password=app']
-		    interval: 5s
-		    timeout: 5s
-		    retries: 5
-	`;
-}
-
-function appExtensionUiComposeService(): string {
-	return dedent`
-		app-extension-ui:
-		  build:
-		    context: .
-		    dockerfile: Dockerfile.app-extension-ui
-		  user: root
-		  command: ${nodeVolumeCommand(`${quietInstallCommand()} && npm run dev:frontend`)}
-		  environment:
-		    CHOKIDAR_USEPOLLING: 'true'
-		  ports:
-		    - '5173:5173'
-		  volumes:
-		    - ./package.json:/app/package.json:ro
-		    - app_extension_ui_node_modules:/app/node_modules
-		  develop:
-		    watch:
-		      - action: sync
-		        path: ./frontend/app-extension-ui
-		        target: /app/frontend/app-extension-ui
-		        initial_sync: true
-		        ignore:
-		          - node_modules/
-		          - dist/
-		      - action: rebuild
-		        path: ./package.json
-	`;
-}
-
-function indent(value: string, spaces: number): string {
-	const prefix = ' '.repeat(spaces);
-	return value
-		.split('\n')
-		.map((line) => (line.length > 0 ? `${prefix}${line}` : line))
-		.join('\n');
+	await writeFile(join(outputDir, 'docker-compose.yml'), yaml.stringify(config));
 }
 
 function nodeVolumeCommand(command: string): string {

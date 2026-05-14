@@ -226,7 +226,7 @@ describe('generateDatabase — docker-compose.yml', () => {
 		expect(content).toContain('postgres:16');
 		expect(content).toContain('db_data:/var/lib/postgresql/data');
 		expect(content).toContain('pg_isready');
-		expect(content).toContain("'-d', 'test-app'");
+		expect(content).toContain(`POSTGRES_DB: ${pgOptions.projectName}`);
 		expect(content).toContain('healthcheck');
 		expect(content).toContain('backend');
 		expect(content).toContain('tsx watch src/index.ts');
@@ -324,10 +324,10 @@ describe('generateDatabase — tokenRepository.ts', () => {
 		expect(compose).toContain('app:');
 		expect(compose).toContain('dockerfile: Dockerfile.app');
 		expect(compose).toContain('user: root');
-		expect(compose).toContain(
-			'command: sh -c "chown -R node:node /app/node_modules && su-exec node sh -c \'echo Installing dependencies... && npm install --no-package-lock --no-audit --no-fund --loglevel=error && ./node_modules/.bin/tsx watch src/index.ts\'"',
-		);
-		expect(compose).toContain("'3000:3000'");
+		expect(compose).toContain('tsx watch src/index.ts');
+		expect(compose).toContain('su-exec node');
+		expect(compose).toContain('chown -R node:node /app/node_modules');
+		expect(compose).toContain('3000:3000');
 		expect(compose).toContain('./package.json:/app/package.json:ro');
 		expect(compose).toContain('app_node_modules:/app/node_modules');
 		expect(compose).toContain('DATABASE_URL: file:./data.db');
@@ -337,10 +337,10 @@ describe('generateDatabase — tokenRepository.ts', () => {
 		expect(compose).toContain('path: ./tsconfig.json');
 		expect(compose).toContain('app-extension-ui:');
 		expect(compose).toContain('dockerfile: Dockerfile.app-extension-ui');
-		expect(compose).toContain(
-			'command: sh -c "chown -R node:node /app/node_modules && su-exec node sh -c \'echo Installing dependencies... && npm install --no-package-lock --no-audit --no-fund --loglevel=error && npm run dev:frontend\'"',
-		);
-		expect(compose).toContain("'5173:5173'");
+		expect(compose).toContain('npm run dev:frontend');
+		expect(compose).toContain('su-exec node');
+		expect(compose).toContain('chown -R node:node /app/node_modules');
+		expect(compose).toContain('5173:5173');
 		expect(compose).toContain('./package.json:/app/package.json:ro');
 		expect(compose).toContain('app_extension_ui_node_modules:/app/node_modules');
 		expect(compose).toContain('develop:');
@@ -386,6 +386,8 @@ describe('generateDatabase — tokenRepository.ts', () => {
 		expect(compose).toContain('DATABASE_URL: postgresql://app:app@db:5432/test-app');
 		expect(compose).toContain('depends_on:');
 		expect(compose).toContain('condition: service_healthy');
+		expect(compose).toContain('postgres_data:/var/lib/postgresql/data');
+		expect(compose).not.toContain('db_data:');
 	});
 
 	it('postgres schema uses text for access_token and refresh_token', async () => {
@@ -444,6 +446,60 @@ describe('generateDatabase — tokenRepository.ts', () => {
 		expect(repo).toContain('encrypt(token.refresh_token)');
 		expect(repo).toContain('decrypt(row.accessToken)');
 		expect(repo).toContain('decrypt(row.refreshToken)');
+	});
+});
+
+describe('generateDatabase — ComposeBuilder behavior', () => {
+	it('sqlite compose has no db service and no database image', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, sqliteOptions);
+		const content = await read('docker-compose.yml');
+		expect(content).not.toContain('image:');
+		expect(content).not.toContain('db:');
+	});
+
+	it('postgres compose has db service with correct image, env, and healthcheck', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const content = await read('docker-compose.yml');
+		expect(content).toContain('postgres:16');
+		expect(content).toContain('POSTGRES_USER: app');
+		expect(content).toContain('POSTGRES_PASSWORD: app');
+		expect(content).toContain(`POSTGRES_DB: ${pgOptions.projectName}`);
+		expect(content).toContain('5432:5432');
+		expect(content).toContain('pg_isready');
+		expect(content).toContain('interval: 5s');
+		expect(content).toContain('retries: 5');
+	});
+
+	it('mysql compose has db service with correct image, env, and healthcheck', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, mysqlOptions);
+		const content = await read('docker-compose.yml');
+		expect(content).toContain('mysql:8');
+		expect(content).toContain('MYSQL_ROOT_PASSWORD: app');
+		expect(content).toContain('MYSQL_USER: app');
+		expect(content).toContain(`MYSQL_DATABASE: ${mysqlOptions.projectName}`);
+		expect(content).toContain('127.0.0.1:3307:3306');
+		expect(content).toContain('mysqladmin');
+		expect(content).toContain('interval: 5s');
+		expect(content).toContain('retries: 5');
+	});
+
+	it('when false: postgres compose without app extensions has no app-extension-ui service', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, pgOptions);
+		const content = await read('docker-compose.yml');
+		expect(content).not.toContain('app-extension-ui');
+		expect(content).not.toContain('Dockerfile.app-extension-ui');
+	});
+
+	it('mysql with app extensions uses mysql_data volume name', async () => {
+		const { generateDatabase } = await import('./database.js');
+		await generateDatabase(tmpDir, { ...mysqlOptions, appExtensions: ['custom-panel'] });
+		const compose = await read('docker-compose.yml');
+		expect(compose).toContain('mysql_data:/var/lib/mysql');
+		expect(compose).not.toContain('db_data:');
 	});
 });
 
