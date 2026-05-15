@@ -1,0 +1,8 @@
+{
+  "name": "create-pipedrive-app",
+  "description": "Slash commands for scaffolding and extending Pipedrive Marketplace integration projects",
+  "version": "0.1.0",
+  "author": {
+    "name": "Pipedrive"
+  }
+}

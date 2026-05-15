@@ -7,4 +7,8 @@ docs/superpowers/
 *-app/
 apps/
 
+# repo-local Codex plugin
+!plugins/create-pipedrive-app/
+!plugins/create-pipedrive-app/**
+
 .idea/

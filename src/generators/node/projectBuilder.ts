@@ -288,11 +288,18 @@ function readmeContent(options: GeneratorOptions): string {
 
 export class NodeProjectBuilder {
 	private steps: BuildStep[] = [];
+	private options: GeneratorOptions;
 
 	constructor(
 		private outputDir: string,
-		private options: GeneratorOptions,
-	) {}
+		options: Partial<GeneratorOptions> = {},
+	) {
+		this.options = {
+			projectName: options.projectName ?? '',
+			database: options.database ?? 'postgres',
+			appExtensions: options.appExtensions ?? [],
+		};
+	}
 
 	addStep(step: BuildStep): this {
 		this.steps.push(step);
