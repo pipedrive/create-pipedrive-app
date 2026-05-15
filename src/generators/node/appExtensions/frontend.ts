@@ -279,6 +279,9 @@ function panelComponentContent(hasModal: boolean): string {
 					</section>
 
 					<section className="toolbar" aria-label="SDK actions">
+						<button type="button" disabled={!isReady} onClick={logActivity}>
+							Log activity
+						</button>
 						<button type="button" disabled={!isReady} onClick={actions.showSnackbar}>
 							Snackbar
 						</button>
@@ -290,9 +293,6 @@ function panelComponentContent(hasModal: boolean): string {
 						</button>
 						<button type="button" className="ghost" disabled={!isReady} onClick={actions.getSignedToken}>
 							Get token
-						</button>
-						<button type="button" disabled={!isReady} onClick={logActivity}>
-							Log activity
 						</button>
 						${openModalButton}
 					</section>
