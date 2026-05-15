@@ -39,6 +39,8 @@ function viteConfigContent(): string {
 		export default defineConfig({
 			root,
 			base: '/extensions/',
+			// Load .env from the project root so VITE_* variables are available
+			envDir: '../../',
 			plugins: [react()],
 			build: {
 				outDir: 'dist',
@@ -180,8 +182,7 @@ function panelComponentContent(hasModal: boolean): string {
 				await runSdkAction('Modal opened', (client) =>
 					client.execute(Command.OPEN_MODAL, {
 						type: Modal.CUSTOM_MODAL,
-						// Replace with your Custom Modal's "Extension identifier" from Marketplace Developer Hub → App Extensions
-						action_id: 'YOUR_CUSTOM_MODAL_EXTENSION_IDENTIFIER',
+						action_id: import.meta.env.VITE_CUSTOM_MODAL_ACTION_ID,
 						data: { source: 'panel' },
 					}),
 				);
