@@ -198,7 +198,7 @@ function panelComponentContent(hasModal: boolean): string {
 
 	return dedent`
 		import { useEffect } from 'react';
-		import { Command, Modal, View } from '@pipedrive/app-extensions-sdk';
+		import { Command, Modal } from '@pipedrive/app-extensions-sdk';
 		import { usePipedriveSdk } from '../shared/pipedriveSdk';
 
 		function formatQueryValue(key: string, value: string): string {
@@ -220,18 +220,17 @@ function panelComponentContent(hasModal: boolean): string {
 				document.title = 'Custom Panel';
 			}, []);
 
-			async function addDeal(): Promise<void> {
-				const result = await runSdkAction('Deal created', (client) =>
+			async function logActivity(): Promise<void> {
+				const dealId = context.query.selectedIds ? parseInt(context.query.selectedIds) : undefined;
+				await runSdkAction('Activity logged', (client) =>
 					client.execute(Command.OPEN_MODAL, {
-						type: Modal.DEAL,
-						prefill: { title: 'New deal from panel' },
+						type: Modal.ACTIVITY,
+						prefill: {
+							subject: 'Follow-up',
+							...(dealId ? { deal: dealId } : {}),
+						},
 					}),
 				);
-				if (result?.status === 'submitted' && result.id) {
-					await runSdkAction('Navigating to deal', (client) =>
-						client.execute(Command.REDIRECT_TO, { view: View.DEALS, id: result.id }),
-					);
-				}
 			}
 
 			${openModalHandler}
@@ -292,8 +291,8 @@ function panelComponentContent(hasModal: boolean): string {
 						<button type="button" className="ghost" disabled={!isReady} onClick={actions.getSignedToken}>
 							Get token
 						</button>
-						<button type="button" disabled={!isReady} onClick={addDeal}>
-							Add deal
+						<button type="button" disabled={!isReady} onClick={logActivity}>
+							Log activity
 						</button>
 						${openModalButton}
 					</section>
