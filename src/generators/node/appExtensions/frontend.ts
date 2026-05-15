@@ -39,6 +39,8 @@ function viteConfigContent(): string {
 		export default defineConfig({
 			root,
 			base: '/extensions/',
+			// Load .env from the project root so VITE_* variables are available
+			envDir: '../../',
 			plugins: [react()],
 			build: {
 				outDir: 'dist',
@@ -169,15 +171,14 @@ function frontendTsConfig(): Record<string, unknown> {
 }
 
 function panelComponentContent(hasModal: boolean): string {
-	const sdkImportLine = hasModal ? "import { Command, Modal } from '@pipedrive/app-extensions-sdk';" : '';
-	const runSdkActionDestructure = hasModal ? ', runSdkAction' : '';
 	const openModalHandler = hasModal
 		? dedent`
 			async function openCustomModal(): Promise<void> {
-				await runSdkAction('Custom modal opened', (client) =>
+				await runSdkAction('Modal opened', (client) =>
 					client.execute(Command.OPEN_MODAL, {
 						type: Modal.CUSTOM_MODAL,
-						action_id: 'custom-modal',
+						// Replace with your Custom Modal's "Extension identifier" from Marketplace Developer Hub → App Extensions
+						action_id: import.meta.env.VITE_CUSTOM_MODAL_ACTION_ID,
 						data: { source: 'panel' },
 					}),
 				);
@@ -192,11 +193,10 @@ function panelComponentContent(hasModal: boolean): string {
 		`
 		: '';
 
-	const sdkImportPrefix = sdkImportLine ? sdkImportLine + '\n' : '';
-
 	return dedent`
 		import { useEffect } from 'react';
-		${sdkImportPrefix}import { usePipedriveSdk } from '../shared/pipedriveSdk';
+		import { Command, Modal } from '@pipedrive/app-extensions-sdk';
+		import { usePipedriveSdk } from '../shared/pipedriveSdk';
 
 		function formatQueryValue(key: string, value: string): string {
 			return /token|secret|code/i.test(key) ? 'Present' : value;
@@ -209,13 +209,26 @@ function panelComponentContent(hasModal: boolean): string {
 		}
 
 		export default function Panel() {
-			const { context, status, theme, visibility, pageState, lastAction, signedTokenPreview, isReady${runSdkActionDestructure}, actions } =
+			const { context, status, theme, visibility, pageState, lastAction, signedTokenPreview, isReady, runSdkAction, actions } =
 				usePipedriveSdk('panel');
 			const queryEntries = Object.entries(context.query);
 
 			useEffect(() => {
 				document.title = 'Custom Panel';
 			}, []);
+
+			async function logActivity(): Promise<void> {
+				const dealId = context.query.selectedIds ? parseInt(context.query.selectedIds) : undefined;
+				await runSdkAction('Activity logged', (client) =>
+					client.execute(Command.OPEN_MODAL, {
+						type: Modal.ACTIVITY,
+						prefill: {
+							subject: 'Follow-up',
+							...(dealId ? { deal: dealId } : {}),
+						},
+					}),
+				);
+			}
 
 			${openModalHandler}
 
@@ -263,6 +276,9 @@ function panelComponentContent(hasModal: boolean): string {
 					</section>
 
 					<section className="toolbar" aria-label="SDK actions">
+						<button type="button" disabled={!isReady} onClick={logActivity}>
+							Log activity
+						</button>
 						<button type="button" disabled={!isReady} onClick={actions.showSnackbar}>
 							Snackbar
 						</button>
@@ -270,7 +286,7 @@ function panelComponentContent(hasModal: boolean): string {
 							Confirm
 						</button>
 						<button type="button" className="ghost" disabled={!isReady} onClick={actions.resize}>
-							Resize panel
+							{actions.isExpanded ? 'Collapse panel' : 'Expand panel'}
 						</button>
 						<button type="button" className="ghost" disabled={!isReady} onClick={actions.getSignedToken}>
 							Get token
@@ -400,7 +416,7 @@ function modalComponentContent(): string {
 							Confirm
 						</button>
 						<button type="button" className="ghost" disabled={!isReady} onClick={actions.resize}>
-							Resize modal
+							{actions.isExpanded ? 'Collapse modal' : 'Expand modal'}
 						</button>
 						<button type="button" className="ghost" disabled={!isReady} onClick={actions.getSignedToken}>
 							Get token

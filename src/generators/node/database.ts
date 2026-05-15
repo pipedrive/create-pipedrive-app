@@ -573,6 +573,7 @@ function buildAppExtensionUiService(): ComposeService {
 		build: { context: '.', dockerfile: 'Dockerfile.app-extension-ui' },
 		user: 'root',
 		command: nodeVolumeCommand(`${quietInstallCommand()} && npm run dev:frontend`),
+		env_file: ['.env'],
 		environment: { CHOKIDAR_USEPOLLING: 'true' },
 		ports: ['5173:5173'],
 		volumes: ['./package.json:/app/package.json:ro', 'app_extension_ui_node_modules:/app/node_modules'],

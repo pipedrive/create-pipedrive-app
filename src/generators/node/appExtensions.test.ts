@@ -153,9 +153,9 @@ describe('generateAppExtensions', () => {
 		await generateAppExtensions(tmpDir, options);
 
 		const app = await readFile(join(tmpDir, 'frontend/app-extension-ui/src/Panel.tsx'), 'utf-8');
-		expect(app).not.toContain('@pipedrive/app-extensions-sdk');
-		expect(app).not.toContain('OPEN_MODAL');
 		expect(app).not.toContain('CLOSE_MODAL');
+		expect(app).not.toContain('CUSTOM_MODAL');
+		expect(app).not.toContain('VITE_CUSTOM_MODAL_ACTION_ID');
 		expect(app).not.toContain('Open modal');
 		expect(app).not.toContain('Close modal');
 	});

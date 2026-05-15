@@ -226,6 +226,8 @@ function appExtensionEnvExample(options: GeneratorOptions): string {
 			'# Custom modal iframe URLs:',
 			'# Local: https://<your-vite-tunnel>/extensions/modal',
 			'# Production: https://<your-backend-domain>/extensions/modal',
+			'VITE_CUSTOM_MODAL_ACTION_ID=',
+			'# Paste the "Extension identifier" from Marketplace Developer Hub → App Extensions',
 		);
 	}
 

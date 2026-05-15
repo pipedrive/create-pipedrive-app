@@ -191,10 +191,18 @@ export function sdkWrapperContent(): string {
 				if (response) setLastAction(response.confirmed ? 'Confirmed' : 'Cancelled');
 			}, [runSdkAction]);
 
+			const [isExpanded, setIsExpanded] = useState(false);
+
 			const resize = useCallback(async () => {
-				const size = surface === 'modal' ? { height: 480, width: 720 } : { height: 420 };
-				await runSdkAction('Resize requested', (client) => client.execute(Command.RESIZE, size));
-			}, [runSdkAction, surface]);
+				const nextExpanded = !isExpanded;
+				const size = surface === 'modal'
+					? (nextExpanded ? { height: 480, width: 720 } : { height: 420, width: 640 })
+					: (nextExpanded ? { height: 420 } : { height: 360 });
+				await runSdkAction(nextExpanded ? 'Expanded' : 'Collapsed', (client) =>
+					client.execute(Command.RESIZE, size),
+				);
+				setIsExpanded(nextExpanded);
+			}, [runSdkAction, surface, isExpanded]);
 
 			const getSignedToken = useCallback(async () => {
 				const response = await runSdkAction('Signed token received', (client) => client.execute(Command.GET_SIGNED_TOKEN));
@@ -220,6 +228,7 @@ export function sdkWrapperContent(): string {
 					showConfirmation,
 					resize,
 					getSignedToken,
+					isExpanded,
 				},
 			};
 		}
