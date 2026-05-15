@@ -180,8 +180,8 @@ function panelComponentContent(hasModal: boolean): string {
 				await runSdkAction('Modal opened', (client) =>
 					client.execute(Command.OPEN_MODAL, {
 						type: Modal.CUSTOM_MODAL,
-						// Must match the "Extension identifier" of your Custom Modal in the Marketplace Developer Hub
-						action_id: 'custom-modal',
+						// Replace with your Custom Modal's "Extension identifier" from Marketplace Developer Hub → App Extensions
+						action_id: 'YOUR_CUSTOM_MODAL_EXTENSION_IDENTIFIER',
 						data: { source: 'panel' },
 					}),
 				);
