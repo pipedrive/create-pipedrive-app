@@ -1,0 +1,17 @@
+{
+  "name": "pipedrive",
+  "owner": {
+    "name": "Pipedrive",
+    "url": "https://www.pipedrive.com/"
+  },
+  "metadata": {
+    "description": "Pipedrive developer tools for Claude Code."
+  },
+  "plugins": [
+    {
+      "name": "create-pipedrive-app",
+      "source": "./plugin",
+      "description": "Slash commands for scaffolding and extending Pipedrive Marketplace integration projects"
+    }
+  ]
+}

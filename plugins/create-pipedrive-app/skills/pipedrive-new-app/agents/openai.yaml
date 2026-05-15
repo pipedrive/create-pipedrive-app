@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pipedrive New App"
+  short_description: "Scaffold Pipedrive Marketplace apps"
+  default_prompt: "Use $pipedrive-new-app to scaffold a new Pipedrive Marketplace app."

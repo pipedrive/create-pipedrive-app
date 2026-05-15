@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pipedrive API"
+  short_description: "Call Pipedrive REST API from apps"
+  default_prompt: "Use $pipedrive-api to add a Pipedrive API call to this app."

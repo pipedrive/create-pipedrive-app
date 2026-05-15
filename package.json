@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Scaffold a production-ready Pipedrive Marketplace app",
   "type": "module",
+  "files": [
+    "dist",
+    "plugin",
+    "plugins"
+  ],
   "bin": {
     "create-pipedrive-app": "./dist/cli.js"
   },

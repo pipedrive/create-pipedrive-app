@@ -1,0 +1,40 @@
+{
+  "name": "create-pipedrive-app",
+  "version": "0.1.0",
+  "description": "Scaffold and extend Pipedrive Marketplace integration projects from Codex.",
+  "author": {
+    "name": "Pipedrive",
+    "url": "https://www.pipedrive.com/"
+  },
+  "homepage": "https://github.com/pipedrive/create-pipedrive-app",
+  "repository": "https://github.com/pipedrive/create-pipedrive-app",
+  "keywords": [
+    "pipedrive",
+    "marketplace",
+    "oauth",
+    "app-extensions",
+    "scaffolding"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Create Pipedrive App",
+    "shortDescription": "Build Pipedrive Marketplace apps from Codex",
+    "longDescription": "Scaffold new Pipedrive Marketplace integration projects, add OAuth, add iframe App Extensions, call the Pipedrive API, and review Marketplace readiness from Codex.",
+    "developerName": "Pipedrive",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/pipedrive/create-pipedrive-app",
+    "privacyPolicyURL": "https://www.pipedrive.com/en/privacy",
+    "termsOfServiceURL": "https://www.pipedrive.com/en/terms-of-service",
+    "defaultPrompt": [
+      "Scaffold a new Pipedrive Marketplace app.",
+      "Add OAuth to this Pipedrive app.",
+      "Review this app for Marketplace readiness."
+    ],
+    "brandColor": "#017A5B",
+    "screenshots": []
+  }
+}

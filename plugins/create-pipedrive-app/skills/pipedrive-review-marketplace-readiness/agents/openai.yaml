@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pipedrive Marketplace Readiness"
+  short_description: "Review Pipedrive Marketplace readiness"
+  default_prompt: "Use $pipedrive-review-marketplace-readiness to review this app."

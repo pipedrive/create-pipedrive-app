@@ -78,7 +78,7 @@ function mainContent(options: AppExtensionFrontendOptions): string {
 		return dedent`
 			import { StrictMode } from 'react';
 			import { createRoot } from 'react-dom/client';
-			import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+			import { BrowserRouter, Route, Routes } from 'react-router-dom';
 			import Modal from './Modal';
 			import Panel from './Panel';
 			import '../shared/styles.css';
@@ -92,7 +92,6 @@ function mainContent(options: AppExtensionFrontendOptions): string {
 						<Routes>
 							<Route path="/extensions/panel" element={<Panel />} />
 							<Route path="/extensions/modal" element={<Modal />} />
-							<Route path="*" element={<Navigate to="/extensions/panel" replace />} />
 						</Routes>
 					</BrowserRouter>
 				</StrictMode>,
@@ -104,7 +103,7 @@ function mainContent(options: AppExtensionFrontendOptions): string {
 		return dedent`
 			import { StrictMode } from 'react';
 			import { createRoot } from 'react-dom/client';
-			import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+			import { BrowserRouter, Route, Routes } from 'react-router-dom';
 			import Modal from './Modal';
 			import '../shared/styles.css';
 
@@ -116,7 +115,6 @@ function mainContent(options: AppExtensionFrontendOptions): string {
 					<BrowserRouter>
 						<Routes>
 							<Route path="/extensions/modal" element={<Modal />} />
-							<Route path="*" element={<Navigate to="/extensions/modal" replace />} />
 						</Routes>
 					</BrowserRouter>
 				</StrictMode>,
@@ -127,7 +125,7 @@ function mainContent(options: AppExtensionFrontendOptions): string {
 	return dedent`
 		import { StrictMode } from 'react';
 		import { createRoot } from 'react-dom/client';
-		import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+		import { BrowserRouter, Route, Routes } from 'react-router-dom';
 		import Panel from './Panel';
 		import '../shared/styles.css';
 
@@ -139,7 +137,6 @@ function mainContent(options: AppExtensionFrontendOptions): string {
 				<BrowserRouter>
 					<Routes>
 						<Route path="/extensions/panel" element={<Panel />} />
-						<Route path="*" element={<Navigate to="/extensions/panel" replace />} />
 					</Routes>
 				</BrowserRouter>
 			</StrictMode>,

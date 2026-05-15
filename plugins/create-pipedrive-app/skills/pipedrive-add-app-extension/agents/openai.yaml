@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pipedrive Add App Extension"
+  short_description: "Add iframe App Extensions"
+  default_prompt: "Use $pipedrive-add-app-extension to add a custom panel or modal."
