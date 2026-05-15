@@ -174,14 +174,13 @@ function frontendTsConfig(): Record<string, unknown> {
 }
 
 function panelComponentContent(hasModal: boolean): string {
-	const sdkImportLine = hasModal ? "import { Command, Modal } from '@pipedrive/app-extensions-sdk';" : '';
-	const runSdkActionDestructure = hasModal ? ', runSdkAction' : '';
 	const openModalHandler = hasModal
 		? dedent`
 			async function openCustomModal(): Promise<void> {
 				await runSdkAction('Modal opened', (client) =>
 					client.execute(Command.OPEN_MODAL, {
 						type: Modal.CUSTOM_MODAL,
+						// Replace with your Custom Modal's "Extension identifier" from Marketplace Developer Hub → App Extensions
 						action_id: import.meta.env.VITE_CUSTOM_MODAL_ACTION_ID,
 						data: { source: 'panel' },
 					}),
@@ -197,11 +196,10 @@ function panelComponentContent(hasModal: boolean): string {
 		`
 		: '';
 
-	const sdkImportPrefix = sdkImportLine ? sdkImportLine + '\n' : '';
-
 	return dedent`
 		import { useEffect } from 'react';
-		${sdkImportPrefix}import { usePipedriveSdk } from '../shared/pipedriveSdk';
+		import { Command, Modal, View } from '@pipedrive/app-extensions-sdk';
+		import { usePipedriveSdk } from '../shared/pipedriveSdk';
 
 		function formatQueryValue(key: string, value: string): string {
 			return /token|secret|code/i.test(key) ? 'Present' : value;
@@ -214,13 +212,27 @@ function panelComponentContent(hasModal: boolean): string {
 		}
 
 		export default function Panel() {
-			const { context, status, theme, visibility, pageState, lastAction, signedTokenPreview, isReady${runSdkActionDestructure}, actions } =
+			const { context, status, theme, visibility, pageState, lastAction, signedTokenPreview, isReady, runSdkAction, actions } =
 				usePipedriveSdk('panel');
 			const queryEntries = Object.entries(context.query);
 
 			useEffect(() => {
 				document.title = 'Custom Panel';
 			}, []);
+
+			async function addDeal(): Promise<void> {
+				const result = await runSdkAction('Deal created', (client) =>
+					client.execute(Command.OPEN_MODAL, {
+						type: Modal.DEAL,
+						prefill: { title: 'New deal from panel' },
+					}),
+				);
+				if (result?.status === 'submitted' && result.id) {
+					await runSdkAction('Navigating to deal', (client) =>
+						client.execute(Command.REDIRECT_TO, { view: View.DEALS, id: result.id }),
+					);
+				}
+			}
 
 			${openModalHandler}
 
@@ -279,6 +291,9 @@ function panelComponentContent(hasModal: boolean): string {
 						</button>
 						<button type="button" className="ghost" disabled={!isReady} onClick={actions.getSignedToken}>
 							Get token
+						</button>
+						<button type="button" disabled={!isReady} onClick={addDeal}>
+							Add deal
 						</button>
 						${openModalButton}
 					</section>
