@@ -177,9 +177,10 @@ function panelComponentContent(hasModal: boolean): string {
 	const openModalHandler = hasModal
 		? dedent`
 			async function openCustomModal(): Promise<void> {
-				await runSdkAction('Custom modal opened', (client) =>
+				await runSdkAction('Modal opened', (client) =>
 					client.execute(Command.OPEN_MODAL, {
 						type: Modal.CUSTOM_MODAL,
+						// Must match the "Extension identifier" of your Custom Modal in the Marketplace Developer Hub
 						action_id: 'custom-modal',
 						data: { source: 'panel' },
 					}),
@@ -273,7 +274,7 @@ function panelComponentContent(hasModal: boolean): string {
 							Confirm
 						</button>
 						<button type="button" className="ghost" disabled={!isReady} onClick={actions.resize}>
-							Resize panel
+							{actions.isExpanded ? 'Collapse panel' : 'Expand panel'}
 						</button>
 						<button type="button" className="ghost" disabled={!isReady} onClick={actions.getSignedToken}>
 							Get token
@@ -403,7 +404,7 @@ function modalComponentContent(): string {
 							Confirm
 						</button>
 						<button type="button" className="ghost" disabled={!isReady} onClick={actions.resize}>
-							Resize modal
+							{actions.isExpanded ? 'Collapse modal' : 'Expand modal'}
 						</button>
 						<button type="button" className="ghost" disabled={!isReady} onClick={actions.getSignedToken}>
 							Get token
