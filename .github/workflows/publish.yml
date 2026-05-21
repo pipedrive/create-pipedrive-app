@@ -5,7 +5,7 @@ on:
     branches: [master]
 jobs:
   npm-publish:
-    if: contains(github.event.label.name, 'npm-version')
+    if: ${{ github.event.label.name == 'npm-ready-for-publish' }}
     uses: pipedrive-actions/github-actions-workflows/.github/workflows/reusable_cicd-npm-publish.yml@master
     with:
       skip_functional_tests: true
