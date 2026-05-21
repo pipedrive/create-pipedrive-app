@@ -9,6 +9,7 @@ jobs:
     uses: pipedrive-actions/github-actions-workflows/.github/workflows/reusable_cicd-npm-publish.yml@master
     with:
       revision: ${{ github.event.pull_request.head.ref }}
+      supported_versions: '[20,22]'
       skip_functional_tests: true
       use_trusted_publisher: true
     permissions:
