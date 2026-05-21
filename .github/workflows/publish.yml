@@ -13,5 +13,5 @@ jobs:
       use_trusted_publisher: true
     permissions:
       id-token: write
-      contents: read
+      contents: write
     secrets: inherit
