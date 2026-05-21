@@ -1,6 +1,6 @@
 {
   "name": "create-pipedrive-app",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "description": "Scaffold a production-ready Pipedrive Marketplace app",
   "license": "MIT",
   "type": "module",
@@ -41,5 +41,9 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pipedrive/create-pipedrive-app"
   }
 }
