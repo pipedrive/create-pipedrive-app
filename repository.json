@@ -1,0 +1,7 @@
+{
+  "name": "create-pipedrive-app",
+  "description": "Scaffold a production-ready Pipedrive Marketplace app",
+  "owner": "Gravity",
+  "type": "library",
+  "status": "released"
+}
