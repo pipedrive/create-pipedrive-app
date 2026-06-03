@@ -1,13 +1,14 @@
 {
   "name": "create-pipedrive-app",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Scaffold a production-ready Pipedrive Marketplace app",
   "license": "MIT",
   "type": "module",
   "files": [
     "dist",
     "plugin",
-    "plugins"
+    "plugins",
+    ".agents"
   ],
   "bin": {
     "create-pipedrive-app": "./dist/cli.js"

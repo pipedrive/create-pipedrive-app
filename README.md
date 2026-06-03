@@ -51,7 +51,7 @@ The package ships plugins for **Claude Code** and **Codex** that wrap the CLI wi
 
 This repository acts as the Claude Code plugin marketplace. Claude reads the marketplace catalog from `.claude-plugin/marketplace.json`, then installs the plugin from `plugin/`.
 
-After this repository is public, install the plugin with:
+Install the plugin with:
 
 ```bash
 claude plugin marketplace add pipedrive/create-pipedrive-app
@@ -71,7 +71,8 @@ The plugin calls `npx create-pipedrive-app` under the hood, so the npm package m
 ### Codex
 
 ```bash
-codex plugin install create-pipedrive-app
+codex plugin marketplace add pipedrive/create-pipedrive-app
+codex plugin add create-pipedrive-app@pipedrive
 ```
 
 ### Available commands
