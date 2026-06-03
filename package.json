@@ -14,7 +14,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run build",
+    "prepack": "npm run build",
     "format": "prettier --write src",
     "lint": "eslint src",
     "test": "vitest run",
