@@ -7,7 +7,8 @@
   "files": [
     "dist",
     "plugin",
-    "plugins"
+    "plugins",
+    ".agents"
   ],
   "bin": {
     "create-pipedrive-app": "./dist/cli.js"
